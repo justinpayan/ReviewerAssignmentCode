@@ -13,6 +13,9 @@
 import numpy as np
 import sys
 import time
+from numba import njit, prange
+import multiprocessing
+from joblib import Parallel, delayed
 
 from collections import Counter
 from scipy.sparse import csr_matrix
@@ -68,14 +71,23 @@ def get_usw_alloc(reviewer_loads, paper_reviewer_affinities, paper_capacities):
     alloc = get_alloc_from_flow_result(residuals, reviewer_loads, paper_capacities)
 
     return alloc
-
-
+`
+@njit(parallel=True)
 def get_valuation(paper, reviewer_set, paper_reviewer_affinities):
     val = 0
-    for r in reviewer_set:
-        val += paper_reviewer_affinities[r, paper]
+    for r in prange(len(reviewer_set)):
+        val += paper_reviewer_affinities[reviewer_set[r], paper]
     return val
 
+# def get_valuation(paper, reviewer_set, paper_reviewer_affinities):
+#     val = 0
+#     numCores = multiprocessing.cpu_count()
+#     val = Parallel(n_jobs=numCores)(delayed(getValHelper)(val, r, paper, paper_reviewer_affinities) for r in reviewer_set)
+#     return val
+#
+# def getValHelper(val, r, paper, paper_reviewer_affinities):
+#     val += paper_reviewer_affinities[r, paper]
+#     return val
 
 def make_transfer(p_from, p_to, alloc, paper_reviewer_affinities):
     revs_from = alloc[p_from]
