@@ -362,7 +362,7 @@ def get_barman_alloc(loads, scores, caps, epsilon):
             # Early stopping, since my impl
             # apparently hits an infinite loop on CVPR somewhere otherwise :(
             # On second thought, it may not even be a loop but rather a really intense search in the graph.
-            if nw > 25:
+            if nw > 1.5:
                 return revert_labels(alloc, prices, revert_labels_map)
 
         # BFS for an improving path
@@ -463,6 +463,8 @@ def save_alloc(alloc, prices, dataset, msg):
     with open("%s_item_limits_prices_%s" % (dataset, msg), 'wb') as f:
         pickle.dump(prices, f)
 
+def exist_envy_cycle(alloc, pra):
+    print("temp")
 
 if __name__ == "__main__":
     # We want to obtain a 1.44-NSW allocation, which should also be 4-epsilon price envy free up to 1 item.

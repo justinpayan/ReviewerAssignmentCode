@@ -15,6 +15,7 @@ import sys
 import time
 from numba import njit, prange
 import multiprocessing
+import itertools
 from joblib import Parallel, delayed
 
 from collections import Counter
@@ -71,35 +72,35 @@ def get_usw_alloc(reviewer_loads, paper_reviewer_affinities, paper_capacities):
     alloc = get_alloc_from_flow_result(residuals, reviewer_loads, paper_capacities)
 
     return alloc
-`
-@njit(parallel=True)
+
 def get_valuation(paper, reviewer_set, paper_reviewer_affinities):
     val = 0
-    for r in prange(len(reviewer_set)):
-        val += paper_reviewer_affinities[reviewer_set[r], paper]
+    for r in reviewer_set:
+        val += paper_reviewer_affinities[r, paper]
     return val
 
 # def get_valuation(paper, reviewer_set, paper_reviewer_affinities):
 #     val = 0
 #     numCores = multiprocessing.cpu_count()
-#     val = Parallel(n_jobs=numCores)(delayed(getValHelper)(val, r, paper, paper_reviewer_affinities) for r in reviewer_set)
+#     # val = Parallel(n_jobs=numCores)(delayed(getValHelper(val, r, paper, paper_reviewer_affinities) for r in reviewer_set))
+#     val = [getValHelper(val, r, paper, paper_reviewer_affinities) for r in reviewer_set]
 #     return val
 #
 # def getValHelper(val, r, paper, paper_reviewer_affinities):
 #     val += paper_reviewer_affinities[r, paper]
 #     return val
-
-def make_transfer(p_from, p_to, alloc, paper_reviewer_affinities):
-    revs_from = alloc[p_from]
-    revs_to = alloc[p_to]
-
-    for r in revs_from:
-        if paper_reviewer_affinities[r, p_to] == 1 and r not in revs_to:
-            alloc[p_to].add(r)
-            alloc[p_from].remove(r)
-            break
-
-    return alloc
+#
+# def make_transfer(p_from, p_to, alloc, paper_reviewer_affinities):
+#     revs_from = alloc[p_from]
+#     revs_to = alloc[p_to]
+#
+#     for r in revs_from:
+#         if paper_reviewer_affinities[r, p_to] == 1 and r not in revs_to:
+#             alloc[p_to].add(r)
+#             alloc[p_from].remove(r)
+#             break
+#
+#     return alloc
 
 
 def eits(alloc, paper_reviewer_affinities):
@@ -144,43 +145,91 @@ def max_usw_and_ef1_alloc(reviewer_loads, paper_reviewer_affinities_bin, paper_c
     return ef1_usw
 
 
-# ef1_violations_set = set()
+ef1_violations_set = set()
 
 
-def efx_violations(alloc, pra):
+# def efx_violations(alloc, pra):
+#     num_efx_violations = 0
+#     for paper in alloc:
+#         for paper2 in alloc:
+#             if paper != paper2:
+#                 other = get_valuation(paper, alloc[paper2], pra)
+#                 curr = get_valuation(paper, alloc[paper], pra)
+#                 for reviewer in alloc[paper2]:
+#                     if other - pra[reviewer, paper] > curr:
+#                         num_efx_violations += 1
+#                         break
+#
+#     return num_efx_violations
+
+def check_pairwise_efx_violation(alloc, paper1, paper2, pra):
     num_efx_violations = 0
-    for paper in alloc:
-        for paper2 in alloc:
-            if paper != paper2:
-                other = get_valuation(paper, alloc[paper2], pra)
-                curr = get_valuation(paper, alloc[paper], pra)
-                for reviewer in alloc[paper2]:
-                    if other - pra[reviewer, paper] > curr:
-                        num_efx_violations += 1
-                        break
-
+    if paper1 != paper2:
+        other = get_valuation(paper1, alloc[paper2], pra)
+        curr = get_valuation(paper1, alloc[paper1], pra)
+        for reviewer in alloc[paper2]:
+            if other - pra[reviewer, paper1] > curr:
+                num_efx_violations += 1
+                break
     return num_efx_violations
 
 
-def ef1_violations(alloc, pra):
-    # print("ef1 violations")
-    num_ef1_violations = 0
-    for paper in alloc:
-        for paper2 in alloc:
-            if paper != paper2:
-                other = get_valuation(paper, alloc[paper2], pra)
-                curr = get_valuation(paper, alloc[paper], pra)
-                found_reviewer_to_drop = False
-                if alloc[paper2]:
-                    for reviewer in alloc[paper2]:
-                        if other - pra[reviewer, paper] <= curr:
-                            found_reviewer_to_drop = True
-                            break
-                    if not found_reviewer_to_drop:
-                        num_ef1_violations += 1
+def efx_violations(alloc, pra):
+    papers = list(alloc.keys())
+    pairsOfPapers = list(itertools.product(papers, papers))
+    numCores = multiprocessing.cpu_count()
+    def check_pairwise_efx_violation_helper(pap1, pap2):
+        return check_pairwise_efx_violation(alloc, pap1, pap2, pra)
+    holder = Parallel(n_jobs=numCores)(delayed(check_pairwise_efx_violation_helper)(pap1, pap2) for pap1,pap2 in pairsOfPapers)
+    return sumOf(holder)
 
+# def ef1_violations(alloc, pra):
+#     # print("ef1 violations")
+#     num_ef1_violations = 0
+#     for paper in alloc:
+#         for paper2 in alloc:
+#             if paper != paper2:
+#                 other = get_valuation(paper, alloc[paper2], pra)
+#                 curr = get_valuation(paper, alloc[paper], pra)
+#                 found_reviewer_to_drop = False
+#                 if alloc[paper2]:
+#                     for reviewer in alloc[paper2]:
+#                         if other - pra[reviewer, paper] <= curr:
+#                             found_reviewer_to_drop = True
+#                             break
+#                     if not found_reviewer_to_drop:
+#                         num_ef1_violations += 1
+#
+#     return num_ef1_violations
+
+def check_pairwise_ef1_violation(alloc, paper1, paper2, pra):
+    num_ef1_violations = 0
+    if paper1 != paper2:
+        other = get_valuation(paper1, alloc[paper2], pra)
+        curr = get_valuation(paper1, alloc[paper1], pra)
+        found_reviewer_to_drop = False
+        for reviewer in alloc[paper2]:
+            if other - pra[reviewer, paper1] <= curr:
+                found_reviewer_to_drop = True
+                break
+        if not found_reviewer_to_drop:
+            num_ef1_violations += 1
     return num_ef1_violations
 
+def ef1_violations(alloc, pra):
+    papers = list(alloc.keys())
+    pairsOfPapers = list(itertools.product(papers, papers))
+    numCores = multiprocessing.cpu_count()
+    def check_pairwise_ef1_violation_helper(pap1, pap2):
+        return check_pairwise_ef1_violation(alloc, pap1, pap2, pra)
+    holder = Parallel(n_jobs=numCores)(delayed(check_pairwise_ef1_violation_helper)(pap1, pap2) for pap1,pap2 in pairsOfPapers)
+    return sumOf(holder)
+
+def sumOf(array):
+    sum = 0
+    for i in array:
+        sum += i
+    return sum
 
 def usw(alloc, pra):
     usw = 0
