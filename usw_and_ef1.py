@@ -182,7 +182,7 @@ def efx_violations(alloc, pra):
         return check_pairwise_efx_violation(alloc, pap1, pap2, pra)
     holder = Parallel(n_jobs=numCores)(delayed(check_pairwise_efx_violation_helper)(pap1, pap2) for pap1,pap2 in pairsOfPapers)
     return sumOf(holder)
-
+#
 # def ef1_violations(alloc, pra):
 #     # print("ef1 violations")
 #     num_ef1_violations = 0

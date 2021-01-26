@@ -464,7 +464,63 @@ def save_alloc(alloc, prices, dataset, msg):
         pickle.dump(prices, f)
 
 def exist_envy_cycle(alloc, pra):
-    print("temp")
+    paperEnvyGraph = nx.DiGraph()
+    paperEnvyGraph.add_nodes_from(alloc.keys())
+    for paper1 in alloc:
+        for paper2 in alloc:
+            if paper1 != paper2:
+                other = get_valuation(paper1, alloc[paper2], pra)
+                curr = get_valuation(paper1, alloc[paper1], pra)
+                if (other > curr):
+                    paperEnvyGraph.add_edge(paper1, paper2)
+    try:
+        returnVal = nx.find_cycle(paperEnvyGraph)
+        print(returnVal)
+        return True, returnVal
+    except:
+        return False, None
+
+def exist_envy_cycle_parallel(alloc, pra):
+    paperEnvyGraph = nx.DiGraph()
+    paperEnvyGraph.add_nodes_from(alloc.keys())
+    papers = list(alloc.keys())
+    pairsOfPapers = list(itertools.product(papers, papers))
+    numCores = multiprocessing.cpu_count()
+    def  exist_envy_cycle_parallel_helper2(pap1, pap2):
+        return  exist_envy_cycle_parallel_helper(alloc, pap1, pap2, pra, paperEnvyGraph)
+    holder = Parallel(n_jobs=numCores)(delayed(exist_envy_cycle_parallel_helper2)(pap1, pap2) for pap1, pap2 in pairsOfPapers)
+    try:
+        returnVal = nx.find_cycle(paperEnvyGraph)
+        print(returnVal)
+        return True, returnVal
+    except:
+        return False, None
+
+def exist_envy_cycle_parallel_helper(alloc, paper1, paper2, pra, graph):
+    if paper1 != paper2:
+        other = get_valuation(paper1, alloc[paper2], pra)
+        curr = get_valuation(paper1, alloc[paper1], pra)
+        if (other > curr):
+            graph.add_edge(paper1, paper2)
+
+def destroy_one_cycle(alloc, pra):
+    envy, cycle = exist_envy_cycle(alloc, pra)
+    if envy:
+        for i in range(len(cycle) - 1):
+            swap_papers(alloc, cycle[i][0], cycle[i][1])
+
+def destroy_all_cycle(alloc, pra):
+    print("hi?")
+    envy, cycle = exist_envy_cycle(alloc, pra)
+    while envy:
+        for i in range(len(cycle) - 1):
+            swap_papers(alloc, cycle[i][0], cycle[i][1])
+        envy, cycle = exist_envy_cycle(alloc, pra)
+
+def swap_papers(alloc, paper1, paper2):
+    temp = alloc[paper   1]
+    alloc[paper1] = alloc[paper2]
+    alloc[paper2] = temp
 
 if __name__ == "__main__":
     # We want to obtain a 1.44-NSW allocation, which should also be 4-epsilon price envy free up to 1 item.
@@ -492,6 +548,8 @@ if __name__ == "__main__":
         reviewer_loads = np.load("C:/Users/Ed Zaharof/Downloads/fair-matching-master/fair-matching-master/data/%s/loads.npy" % dataset).astype(np.int64)
         paper_capacities = np.load("C:/Users/Ed Zaharof/Downloads/fair-matching-master/fair-matching-master/data/%s/covs.npy" % dataset).astype(np.int64)
         print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+        destroy_all_cycle(alloc, paper_reviewer_affinities)
+        print_stats(alloc, paper_reviewer_affinities, paper_capacities)
 
         # Drop and then add (?) reviewers from papers to meet constraints
         alloc = drop_revs(alloc, paper_reviewer_affinities, paper_capacities)
@@ -503,6 +561,8 @@ if __name__ == "__main__":
 
         print("Barman-Item-Caps (Meeting Constraints) Results")
         print("%.2f seconds" % runtime)
+        print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+        destroy_all_cycle(alloc, paper_reviewer_affinities)
         print_stats(alloc, paper_reviewer_affinities, paper_capacities)
 
     paper_reviewer_affinities = np.load("C:/Users/Ed Zaharof/Downloads/fair-matching-master/fair-matching-master/data/%s/scores.npy" % dataset)
