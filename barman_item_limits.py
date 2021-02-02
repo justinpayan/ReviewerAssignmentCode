@@ -467,22 +467,30 @@ if __name__ == "__main__":
     # We want to obtain a 1.44-NSW allocation, which should also be 4-epsilon price envy free up to 1 item.
     dataset = sys.argv[1]
     dry_run = sys.argv[2]
+
+    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
+    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset)
+    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
+
+
     if dry_run != "dry":
         epsilon = 1/5
         start = time.time()
-        alloc, prices = run_algo(dataset, epsilon)
+        # alloc, prices = run_algo(dataset, epsilon)
         runtime = time.time() - start
 
-        # with open('cvpr_item_limits_alloc', 'r') as inf:
-        #     alloc = eval(inf.read())
+        with open('cvpr2018_item_limits_alloc_', 'rb') as inf:
+            alloc = pickle.load(inf)
+        with open('cvpr2018_item_limits_prices_', 'rb') as inf:
+            prices = pickle.load(inf)
 
         print(alloc)
 
-        save_alloc(alloc, prices, dataset, "")
+        # save_alloc(alloc, prices, dataset, "")
 
-        print("Barman Algorithm Results")
-        print("%.2f seconds" % runtime)
-        print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+        # print("Barman Algorithm Results")
+        # print("%.2f seconds" % runtime)
+        # print_stats(alloc, paper_reviewer_affinities, paper_capacities)
 
         # Drop and then add (?) reviewers from papers to meet constraints
         alloc = drop_revs(alloc, paper_reviewer_affinities, paper_capacities)
@@ -495,9 +503,6 @@ if __name__ == "__main__":
         print("Barman-Item-Caps (Meeting Constraints) Results")
         print("%.2f seconds" % runtime)
         print_stats(alloc, paper_reviewer_affinities, paper_capacities)
-
-    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
-    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset)
 
     # Load the fairflow solution without the reviewer lower bounds...
     timestamps = {"cvpr": "2020-09-16-10-28-42", "cvpr2018": "2020-09-16-10-26-09", "midl": "2020-09-16-09-32-53"}
