@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-source activate ra
-
 OUTBASE=/mnt/nfs/scratch1/jpayan
 
 DATASET=$1
