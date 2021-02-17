@@ -4,11 +4,12 @@
 import argparse
 import os
 import re
+import time
 
 from gurobipy import *
 import gurobipy as gp
 
-from barman_item_limits import *
+from utils import *
 
 
 def create_multidict(pra):
@@ -44,7 +45,9 @@ def add_ef1_constraints(m, x, pras):
     for p in papers:
         valued_revs[p] = set()
         for rev in revs:
-            if pras[p, rev] > 0:
+            # TODO: If we change from 0 to .8 for the cutoff here, we got a correct answer on MIDL almost immediately.
+            # Is that because there were almost no constraints? Or because we were able to satisfy the important constraints?
+            if pras[p, rev] > 0.99:
                 valued_revs[p].add(rev)
 
     d = []
@@ -125,14 +128,18 @@ def tpms(pra, covs, loads):
 
     m = Model("TPMS")
 
+    start = time.time()
+
     x = add_vars_to_model(m, paper_rev_pairs)
     add_constrs_to_model(m, x, covs, loads)
 
     m.setObjective(x.prod(pras), GRB.MAXIMIZE)
 
-    m.write("TPMS.lp")
+    # m.write("TPMS.lp")
 
     m.optimize()
+
+    alg_time = time.time() - start
 
     print("TPMS Score")
     print(m.objVal)
@@ -141,7 +148,7 @@ def tpms(pra, covs, loads):
     alloc = convert_to_dict(m, covs.shape[0])
 
     print(alloc)
-    print_stats(alloc, paper_reviewer_affinities, covs)
+    print_stats(alloc, paper_reviewer_affinities, covs, alg_time=alg_time)
 
 
 def usw_ef1(pra, covs, loads):
@@ -190,4 +197,4 @@ if __name__ == "__main__":
 
     tpms(paper_reviewer_affinities, covs, loads)
 
-    usw_ef1(paper_reviewer_affinities, covs, loads)
+    # usw_ef1(paper_reviewer_affinities, covs, loads)

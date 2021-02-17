@@ -2,56 +2,7 @@ import math
 import networkx as nx
 import pickle
 
-from usw_and_ef1 import *
-
-
-def construct_graph(reviewer_loads, paper_reviewer_affinities, paper_capacities):
-    # 1d numpy array, 2d array, 1d numpy array
-    graph = nx.DiGraph()
-
-    reviewers = list(range(reviewer_loads.shape[0]))
-    reviewers = [i + 2 for i in reviewers]
-    papers = list(range(paper_capacities.shape[0]))
-    papers = [i + len(reviewers) + 2 for i in papers]
-
-    supply_and_demand = np.sum(paper_capacities)
-    graph.add_node(0, demand=int(-1*supply_and_demand))
-    graph.add_node(1, demand=int(supply_and_demand))
-
-    for r in reviewers:
-        graph.add_node(r, demand=0)
-    for p in papers:
-        graph.add_node(p, demand=0)
-
-    # Draw edges from reviewers to papers
-    W = int(1e10)
-    for p in papers:
-        for r in reviewers:
-            graph.add_edge(r, p, weight=-1*int(W*paper_reviewer_affinities[r-2, p-len(reviewers)-2]), capacity=1)
-    # Draw edges from source to reviewers
-    for r in reviewers:
-        graph.add_edge(0, r, weight=0, capacity=int(reviewer_loads[r-2]))
-    # Draw edges from papers to sink
-    for p in papers:
-        graph.add_edge(p, 1, weight=0, capacity=int(paper_capacities[p-len(reviewers)-2]))
-
-    return graph
-
-
-def get_alloc_from_flow_result(flowDict, loads, covs):
-    reviewers = list(range(loads.shape[0]))
-    reviewers = [i + 2 for i in reviewers]
-    papers = list(range(covs.shape[0]))
-    papers = [i + len(reviewers) + 2 for i in papers]
-
-    alloc = {p - len(reviewers) - 2: set() for p in papers}
-
-    for r in reviewers:
-        for p in papers:
-            if flowDict[r][p] == 1:
-                alloc[p - len(reviewers) - 2].add(r - 2)
-
-    return alloc
+from utils import *
 
 
 def perform_rounding(pra, pc, r):
@@ -433,17 +384,6 @@ def add_revs(alloc, paper_reviewer_affinities, paper_capacities, reviewer_load_c
         _alloc[paper] = rev_set
 
     return _alloc
-
-
-def print_stats(alloc, paper_reviewer_affinities, covs):
-    print("usw: ", usw(alloc, paper_reviewer_affinities))
-    print("nsw: ", nsw(alloc, paper_reviewer_affinities))
-    print("ef1 violations: ", ef1_violations(alloc, paper_reviewer_affinities))
-    print("efx violations: ", efx_violations(alloc, paper_reviewer_affinities))
-    print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
-    print("reviewer load distribution: ", reviewer_load_distrib(alloc))
-    print("paper scores: ", paper_score_stats(alloc, paper_reviewer_affinities))
-    print()
 
 
 def run_algo(dataset, epsilon):
