@@ -122,18 +122,18 @@ def reviewer_load_distrib(alloc):
 
 
 def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
-    usw = usw(alloc, paper_reviewer_affinities)
-    nsw = nsw(alloc, paper_reviewer_affinities)
-    ef1 = ef1_violations(alloc, paper_reviewer_affinities)
-    efx = efx_violations(alloc, paper_reviewer_affinities)
+    _usw = usw(alloc, paper_reviewer_affinities)
+    _nsw = nsw(alloc, paper_reviewer_affinities)
+    _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
+    _efx = efx_violations(alloc, paper_reviewer_affinities)
     ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
 
-    print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d \\\\" % (alg_time, usw, nsw, ps_min, ps_mean, ef1, efx))
+    print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d \\\\" % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx))
 
     print("usw: ", usw)
     print("nsw: ", nsw)
-    print("ef1 violations: ", ef1)
-    print("efx violations: ", efx)
+    print("ef1 violations: ", _ef1)
+    print("efx violations: ", _efx)
     print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
     print("reviewer load distribution: ", reviewer_load_distrib(alloc))
     print("paper scores: ", ps_min, ps_max, ps_mean, ps_std)
