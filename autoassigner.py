@@ -104,7 +104,7 @@ class auto_assigner:
         while lower_bound < upper_bound or not one_iteration_done:
             one_iteration_done = True
             prev_solution = current_solution
-            current_solution = lower_bound + (upper_bound - lower_bound) / 2
+            current_solution = int(lower_bound + (upper_bound - lower_bound) / 2)
 
             # the next condition is to control the case when upper_bound - lower_bound = 1
             # then it must be the case that max flow is less then required
