@@ -102,7 +102,7 @@ def load_fairflow_soln(path_to_output):
     return alloc
 
 
-def reviewer_load_distrib(alloc):
+def reviewer_load_distrib(alloc, num_revs):
     rev_loads = Counter()
     for rev_set in alloc.values():
         for r in rev_set:
@@ -114,6 +114,9 @@ def reviewer_load_distrib(alloc):
     rev_loads = []
     for ct, num_revs in rev_load_dist.items():
         rev_loads.extend([ct]*num_revs)
+
+    revs_no_load = num_revs - len(rev_loads)
+    rev_loads.extend([0]*revs_no_load)
 
     return "%s, min: %d, max: %d, std: %.2f" % (str(rev_load_dist),
                                                 min(rev_loads),
@@ -130,11 +133,11 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
 
     print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d \\\\" % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx))
 
-    print("usw: ", usw)
-    print("nsw: ", nsw)
+    print("usw: ", _usw)
+    print("nsw: ", _nsw)
     print("ef1 violations: ", _ef1)
     print("efx violations: ", _efx)
     print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
-    print("reviewer load distribution: ", reviewer_load_distrib(alloc))
+    print("reviewer load distribution: ", reviewer_load_distrib(alloc, paper_reviewer_affinities.shape[0]))
     print("paper scores: ", ps_min, ps_max, ps_mean, ps_std)
     print()
