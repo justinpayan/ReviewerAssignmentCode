@@ -102,7 +102,7 @@ def load_fairflow_soln(path_to_output):
     return alloc
 
 
-def reviewer_load_distrib(alloc, num_revs):
+def reviewer_load_distrib(alloc, m):
     rev_loads = Counter()
     for rev_set in alloc.values():
         for r in rev_set:
@@ -115,7 +115,7 @@ def reviewer_load_distrib(alloc, num_revs):
     for ct, num_revs in rev_load_dist.items():
         rev_loads.extend([ct]*num_revs)
 
-    revs_no_load = num_revs - len(rev_loads)
+    revs_no_load = m - len(rev_loads)
     rev_loads.extend([0]*revs_no_load)
     rev_load_dist[0] = revs_no_load
 
