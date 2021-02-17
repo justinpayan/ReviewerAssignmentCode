@@ -117,6 +117,7 @@ def reviewer_load_distrib(alloc, num_revs):
 
     revs_no_load = num_revs - len(rev_loads)
     rev_loads.extend([0]*revs_no_load)
+    rev_load_dist[0] = revs_no_load
 
     return "%s, min: %d, max: %d, std: %.2f" % (str(rev_load_dist),
                                                 min(rev_loads),
