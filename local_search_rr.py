@@ -140,6 +140,7 @@ class LocalSearcher(object):
                                  self.covs, self.loads, self.best_revs]:
                     list_of_copied_args.append(len(elements_to_check) * [argument])
                 list_of_copied_args.append(elements_to_check)
+                print(time.perf_counter() - start)
 
                 results = pool.map(can_delete_or_exchange, zip(*list_of_copied_args))
                 successes = np.array(list(results))
