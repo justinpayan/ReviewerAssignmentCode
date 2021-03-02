@@ -127,11 +127,13 @@ class LocalSearcher(object):
 
             pool = mp.Pool(processes=self.num_processes)
 
-            for idx in tqdm(range(math.ceil(len(ground_set) / self.num_processes))):
+            jobs_per_iter = self.num_processes * 100
+
+            for idx in tqdm(range(math.ceil(len(ground_set) / jobs_per_iter))):
                 elements_to_check = ground_set[
-                                    idx * self.num_processes: min((idx + 1) * self.num_processes, len(ground_set))]
-                print("checking elements:")
-                print(elements_to_check)
+                                    idx * jobs_per_iter: min((idx + 1) * jobs_per_iter, len(ground_set))]
+                print("checking this number of elements:")
+                print(len(elements_to_check))
                 start = time.perf_counter()
 
                 list_of_copied_args = []
