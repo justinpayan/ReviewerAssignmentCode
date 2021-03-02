@@ -1,5 +1,5 @@
-import concurrent.futures
 import math
+import multiprocessing as mp
 import os
 import random
 import time
@@ -117,73 +117,75 @@ class LocalSearcher(object):
             print("additions done")
             print("usw ", curr_usw)
 
-            with concurrent.futures.ProcessPoolExecutor() as executor:
-                for idx in tqdm(range(math.ceil(len(ground_set) / self.num_processes))):
-                    elements_to_check = ground_set[idx * self.num_processes: min((idx + 1) * self.num_processes, len(ground_set))]
-                    print("checking elements:")
-                    print(elements_to_check)
+            pool = mp.Pool(processes=self.num_processes)
+
+            for idx in tqdm(range(math.ceil(len(ground_set) / self.num_processes))):
+                elements_to_check = ground_set[
+                                    idx * self.num_processes: min((idx + 1) * self.num_processes, len(ground_set))]
+                print("checking elements:")
+                print(elements_to_check)
+                start = time.perf_counter()
+                results = pool.map(lambda e: self.can_delete_or_exchange(assigned_agents,
+                                                                         assigned_positions,
+                                                                         order,
+                                                                         matrix_alloc,
+                                                                         current_rev_loads,
+                                                                         curr_usw,
+                                                                         e),
+                                   elements_to_check)
+                successes = np.array(list(results))
+                print(time.perf_counter() - start)
+                print(np.any(successes))
+                # Run exactly 1 of them synchronously. Of course, we could run all the successful ones synchronously
+                # but we don't know if some of them will stop being useful once we run the first. So we'll just
+                # ignore all but the first and if it's still relevant by the time we circle back around then great.
+                if np.any(successes):
+                    print("improving the ordering")
                     start = time.perf_counter()
-                    results = executor.map(lambda e: self.can_delete_or_exchange(assigned_agents,
-                                                                                 assigned_positions,
-                                                                                 order,
-                                                                                 matrix_alloc,
-                                                                                 current_rev_loads,
-                                                                                 curr_usw,
-                                                                                 e),
-                                           elements_to_check)
-                    successes = np.array(list(results))
-                    print(time.perf_counter() - start)
-                    print(np.any(successes))
-                    # Run exactly 1 of them synchronously. Of course, we could run all the successful ones synchronously
-                    # but we don't know if some of them will stop being useful once we run the first. So we'll just
-                    # ignore all but the first and if it's still relevant by the time we circle back around then great.
-                    if np.any(successes):
-                        print("improving the ordering")
-                        start = time.perf_counter()
 
-                        e = elements_to_check[np.where(successes)[0][0]]
+                    e = elements_to_check[np.where(successes)[0][0]]
 
-                        if e[0] in assigned_agents and e[1] in assigned_positions:
-                            # Try a deletion operation
-                            new_order = order - {e}
-                            currently_assigned_revs = np.where(matrix_alloc[:, e[0]])
-                            # We can only gain benefit from deleting this paper/agent if it frees up a reviewer
-                            if np.any(current_rev_loads[currently_assigned_revs] == 0):
-                                new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
-                                if new_usw >= self.improvement_factor * curr_usw:
-                                    can_improve = True
-                                    curr_usw = new_usw
-                                    order = new_order
-                                    assigned_agents -= {e[0]}
-                                    assigned_positions -= {e[1]}
-                                    current_rev_loads = tmp_rev_loads
-                                    matrix_alloc = tmp_matrix_alloc
-                        else:
-                            # Try an exchange operation
-                            del_1 = set()
-                            del_2 = set()
-
-                            if e[0] in assigned_agents or e[1] in assigned_positions:
-                                for f in order:
-                                    if f[0] == e[0]:
-                                        del_1.add(f)
-                                    elif f[1] == e[1]:
-                                        del_2.add(f)
-                            new_order = order - (del_1 | del_2)
-                            new_order.add(e)
-
+                    if e[0] in assigned_agents and e[1] in assigned_positions:
+                        # Try a deletion operation
+                        new_order = order - {e}
+                        currently_assigned_revs = np.where(matrix_alloc[:, e[0]])
+                        # We can only gain benefit from deleting this paper/agent if it frees up a reviewer
+                        if np.any(current_rev_loads[currently_assigned_revs] == 0):
                             new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
                             if new_usw >= self.improvement_factor * curr_usw:
                                 can_improve = True
                                 curr_usw = new_usw
                                 order = new_order
-                                assigned_agents -= {t[0] for t in (del_1 | del_2)}
-                                assigned_agents.add(e[0])
-                                assigned_positions -= {t[1] for t in (del_1 | del_2)}
-                                assigned_positions.add(e[1])
+                                assigned_agents -= {e[0]}
+                                assigned_positions -= {e[1]}
                                 current_rev_loads = tmp_rev_loads
                                 matrix_alloc = tmp_matrix_alloc
-                        print(time.perf_counter() - start)
+                    else:
+                        # Try an exchange operation
+                        del_1 = set()
+                        del_2 = set()
+
+                        if e[0] in assigned_agents or e[1] in assigned_positions:
+                            for f in order:
+                                if f[0] == e[0]:
+                                    del_1.add(f)
+                                elif f[1] == e[1]:
+                                    del_2.add(f)
+                        new_order = order - (del_1 | del_2)
+                        new_order.add(e)
+
+                        new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
+                        if new_usw >= self.improvement_factor * curr_usw:
+                            can_improve = True
+                            curr_usw = new_usw
+                            order = new_order
+                            assigned_agents -= {t[0] for t in (del_1 | del_2)}
+                            assigned_agents.add(e[0])
+                            assigned_positions -= {t[1] for t in (del_1 | del_2)}
+                            assigned_positions.add(e[1])
+                            current_rev_loads = tmp_rev_loads
+                            matrix_alloc = tmp_matrix_alloc
+                    print(time.perf_counter() - start)
 
                     # THE BELOW WAS AN INTENDED SHORTCUT WHERE WE FIRST CHECK IF WE CAN JUST COMPUTE THE NEW USW
                     # ADDITIVELY INSTEAD OF RUNNING RR. IT RUNS A SMALL FRACTION OF THE TIME, SO WE CAN ABANDON THIS PLAN
@@ -302,7 +304,8 @@ def run_algo(dataset, base_dir, epsilon, initial_order, num_processes):
         with open(initial_order, "rb") as f:
             initial_order = pickle.load(f)
 
-    local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon, initial_order, num_processes)
+    local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon, initial_order,
+                                   num_processes)
 
     alloc = local_searcher.get_approx_best_rr()
     return alloc
