@@ -168,9 +168,10 @@ def get_greedy_rr(pra, covs, loads, best_revs):
         print()
 
         agent_selection_order.append(next_agent)
-        old_usw = max_usw
         if max_usw > old_usw:
             best_selection_order = deepcopy(agent_selection_order)
+        old_usw = max_usw
+
 
     return agent_selection_order, best_selection_order
 
@@ -184,8 +185,8 @@ def greedy_rr(pra, covs, loads, alloc_file):
 
     best_revs = np.argsort(-1 * pra, axis=0)
 
-    best_seln_order, _ = get_greedy_rr(pra, covs, loads, best_revs)
-    alloc, _, _ = rr(best_seln_order, pra, covs, loads, best_revs)
+    complete_seln_order, _ = get_greedy_rr(pra, covs, loads, best_revs)
+    alloc, _, _ = rr(complete_seln_order, pra, covs, loads, best_revs)
 
     save_alloc(alloc, alloc_file)
 
@@ -193,6 +194,17 @@ def greedy_rr(pra, covs, loads, alloc_file):
 
     print(alloc)
     print_stats(alloc, pra, covs, alg_time=alg_time)
+
+
+def _greedy_rr_ordering(pra, covs, loads):
+    # Cut off the affinities so they're above 0. This is required for the objective to be submodular.
+    pra[np.where(pra < 0)] = 0
+    # pra /= np.max(pra)
+
+    best_revs = np.argsort(-1 * pra, axis=0)
+
+    _, partial_selection_order = get_greedy_rr(pra, covs, loads, best_revs)
+    return partial_selection_order
 
 
 if __name__ == "__main__":
@@ -208,4 +220,19 @@ if __name__ == "__main__":
         print("covs must be homogenous")
         sys.exit(1)
 
-    greedy_rr(paper_reviewer_affinities, covs, loads, args.alloc_file)
+    # greedy_rr(paper_reviewer_affinities, covs, loads, args.alloc_file)
+    best_revs = np.argsort(-1 * paper_reviewer_affinities, axis=0)
+
+    complete_seln_order, partial_seln_order = get_greedy_rr(paper_reviewer_affinities, covs, loads, best_revs)
+    complete_alloc, _, _ = rr(complete_seln_order, paper_reviewer_affinities, covs, loads, best_revs)
+    partial_alloc, _, _ = rr(partial_seln_order, paper_reviewer_affinities, covs, loads, best_revs)
+
+    with open("complete_order_cvpr_debug", "wb") as f:
+        pickle.dump(complete_seln_order, f)
+    with open("partial_order_cvpr_debug", "wb") as f:
+        pickle.dump(partial_seln_order, f)
+    save_alloc(complete_alloc, "complete_greedy_cvpr_debug")
+    save_alloc(partial_alloc, "partial_greedy_cvpr_debug")
+
+
+
