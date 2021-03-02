@@ -144,7 +144,7 @@ class LocalSearcher(object):
                 results = pool.map(can_delete_or_exchange, zip(*list_of_copied_args))
                 successes = np.array(list(results))
                 print(time.perf_counter() - start)
-                print(np.any(successes))
+                print(np.any(successes), flush=True)
                 # Run exactly 1 of them synchronously. Of course, we could run all the successful ones synchronously
                 # but we don't know if some of them will stop being useful once we run the first. So we'll just
                 # ignore all but the first and if it's still relevant by the time we circle back around then great.

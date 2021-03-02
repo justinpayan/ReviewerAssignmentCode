@@ -4,8 +4,8 @@
 #SBATCH --output=cvpr_local_search.out
 #SBATCH --error=cvpr_local_search.err
 #SBATCH --nodes=1
-#SBATCH --ntasks=20
-#SBATCH --mem=20G
+#SBATCH --ntasks=40
+#SBATCH --mem=40G
 #SBATCH --time=04:00:00
 #SBATCH --partition=defq
 
@@ -15,4 +15,4 @@ DATASET=$1
 BASE_DIR=${OUTBASE}/fair-matching/data
 OUTBASE=${OUTBASE}/ReviewerAssignmentCode
 
-./run_local_search.sh $DATASET $BASE_DIR 20
+./run_local_search.sh $DATASET $BASE_DIR 40
