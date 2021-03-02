@@ -15,8 +15,9 @@ def check_obj(order, scores, covs, loads, best_revs):
     return rr_usw(list_order, scores, covs, loads, best_revs)
 
 
-def can_delete_or_exchange(assigned_agents, assigned_positions, order, matrix_alloc,
-                           current_rev_loads, curr_usw, improvement_factor, scores, covs, loads, best_revs, e):
+def can_delete_or_exchange(input_args):
+    assigned_agents, assigned_positions, order, matrix_alloc, current_rev_loads, \
+    curr_usw, improvement_factor, scores, covs, loads, best_revs, e = input_args
     # Check if we can delete or add/exchange the tuple e to improve
     # update the reviewer loads when we delete or exchange
     if e[0] in assigned_agents and e[1] in assigned_positions:
@@ -133,13 +134,14 @@ class LocalSearcher(object):
                 print(elements_to_check)
                 start = time.perf_counter()
 
-                def can_delete_or_exchange_helper(e):
-                    return can_delete_or_exchange(assigned_agents, assigned_positions, order, matrix_alloc,
-                                                  current_rev_loads, curr_usw, self.improvement_factor, self.scores,
-                                                  self.covs, self.loads,
-                                                  self.best_revs, e)
+                list_of_copied_args = []
+                for argument in [assigned_agents, assigned_positions, order, matrix_alloc,
+                                 current_rev_loads, curr_usw, self.improvement_factor, self.scores,
+                                 self.covs, self.loads, self.best_revs]:
+                    list_of_copied_args.append(len(elements_to_check) * [argument])
+                list_of_copied_args.append(elements_to_check)
 
-                results = pool.map(can_delete_or_exchange_helper, elements_to_check)
+                results = pool.map(can_delete_or_exchange, zip(*list_of_copied_args))
                 successes = np.array(list(results))
                 print(time.perf_counter() - start)
                 print(np.any(successes))
