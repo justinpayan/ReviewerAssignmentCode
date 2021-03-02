@@ -11,13 +11,14 @@ from utils import *
 
 
 class LocalSearcher(object):
-    def __init__(self, scores, loads, covs, epsilon):
+    def __init__(self, scores, loads, covs, epsilon, initial_order):
         self.best_revs = np.argsort(-1 * scores, axis=0)
         self.scores = scores
         self.loads = loads
         self.covs = covs
         self.m, self.n = scores.shape
         self.improvement_factor = 1 + epsilon / (self.n ** 4)
+        self.initial_order = initial_order
 
     @staticmethod
     def tuples_to_list(order):
@@ -76,11 +77,10 @@ class LocalSearcher(object):
 
         return False
 
-    def local_search(self, ground_set, initial=None):
-        if initial is None:
-            initial = set()
+    def local_search(self, ground_set, initial):
         order = initial
         curr_usw, current_rev_loads, matrix_alloc = self.check_obj(order)
+        print("initial usw ", curr_usw)
         times_thru = 0
 
         all_agents = set(range(self.n))
@@ -259,7 +259,10 @@ class LocalSearcher(object):
 
         # Run the heuristic to get a pretty decent partial allocation. This is a list,
         # but we can convert to a set of tuples depending on the ground set each of the 3 times we run local search.
-        initial_ordering = _greedy_rr_ordering(self.scores, self.covs, self.loads)
+        if not self.initial_order:
+            initial_ordering = _greedy_rr_ordering(self.scores, self.covs, self.loads)
+        else:
+            initial_ordering = self.initial_order
 
         # Run the algorithm from Lee et al. 2009 to get a 4+epsilon approximation to the best RR allocation, for
         # a subset of the agents
@@ -282,12 +285,16 @@ class LocalSearcher(object):
         return partial_alloc
 
 
-def run_algo(dataset, base_dir, epsilon):
+def run_algo(dataset, base_dir, epsilon, initial_order):
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     reviewer_loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
     paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy")).astype(np.int64)
 
-    local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon)
+    if initial_order:
+        with open(initial_order, "rb") as f:
+            initial_order = pickle.load(f)
+
+    local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon, initial_order)
 
     alloc = local_searcher.get_approx_best_rr()
     return alloc
@@ -298,12 +305,13 @@ if __name__ == "__main__":
     dataset = args.dataset
     base_dir = args.base_dir
     alloc_file = args.alloc_file
+    initial_order = args.local_search_init_order
 
     random.seed(args.seed)
 
     epsilon = 1 / 5
     start = time.time()
-    alloc = run_algo(dataset, base_dir, epsilon)
+    alloc = run_algo(dataset, base_dir, epsilon, initial_order)
     runtime = time.time() - start
 
     save_alloc(alloc, alloc_file)

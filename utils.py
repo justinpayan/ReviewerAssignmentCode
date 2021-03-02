@@ -55,7 +55,8 @@ def efx_violations(alloc, pra):
             other = get_valuation(paper, alloc[paper2], pra)
             curr = get_valuation(paper, alloc[paper], pra)
             for reviewer in alloc[paper2]:
-                if other - pra[reviewer, paper] > curr:
+                val_dropped = other - pra[reviewer, paper]
+                if val_dropped > curr and not np.isclose(val_dropped, curr):
                     num_efx_violations += 1
                     break
 
@@ -72,7 +73,8 @@ def ef1_violations(alloc, pra):
             found_reviewer_to_drop = False
             if alloc[paper2]:
                 for reviewer in alloc[paper2]:
-                    if other - pra[reviewer, paper] <= curr:
+                    val_dropped = other - pra[reviewer, paper]
+                    if val_dropped < curr or np.allclose(val_dropped, curr):
                         found_reviewer_to_drop = True
                         break
                 if not found_reviewer_to_drop:
@@ -162,6 +164,7 @@ def parse_args():
     parser.add_argument("--base_dir", type=str, default="/home/justinspayan/Fall_2020/fair-matching/data")
     parser.add_argument("--seed", type=int, default=31415)
     parser.add_argument("--alloc_file", type=str, required=True)
+    parser.add_argument("--local_search_init_order", type=str, default=None)
     return parser.parse_args()
 
 
