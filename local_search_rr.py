@@ -9,6 +9,46 @@ from tqdm import tqdm
 from utils import *
 
 
+def check_obj(order, scores, covs, loads, best_revs):
+    # Just call the rr_usw function after turning the set-of-tuples order into a sorted-list-based order
+    list_order = LocalSearcher.tuples_to_list(order)
+    return rr_usw(list_order, scores, covs, loads, best_revs)
+
+
+def can_delete_or_exchange(assigned_agents, assigned_positions, order, matrix_alloc,
+                           current_rev_loads, curr_usw, improvement_factor, scores, covs, loads, best_revs, e):
+    # Check if we can delete or add/exchange the tuple e to improve
+    # update the reviewer loads when we delete or exchange
+    if e[0] in assigned_agents and e[1] in assigned_positions:
+        # Try a deletion operation
+        new_order = order - {e}
+        currently_assigned_revs = np.where(matrix_alloc[:, e[0]])
+        # We can only gain benefit from deleting this paper/agent if it frees up a reviewer
+        if np.any(current_rev_loads[currently_assigned_revs] == 0):
+            new_usw, tmp_rev_loads, tmp_matrix_alloc = check_obj(new_order, scores, covs, loads, best_revs)
+            if new_usw >= improvement_factor * curr_usw:
+                return True
+    else:
+        # Try an exchange operation
+        del_1 = set()
+        del_2 = set()
+
+        if e[0] in assigned_agents or e[1] in assigned_positions:
+            for f in order:
+                if f[0] == e[0]:
+                    del_1.add(f)
+                elif f[1] == e[1]:
+                    del_2.add(f)
+        new_order = order - (del_1 | del_2)
+        new_order.add(e)
+
+        new_usw, tmp_rev_loads, tmp_matrix_alloc = check_obj(new_order, scores, covs, loads, best_revs)
+        if new_usw >= improvement_factor * curr_usw:
+            return True
+
+    return False
+
+
 class LocalSearcher(object):
     def __init__(self, scores, loads, covs, epsilon, initial_order, num_processes):
         self.best_revs = np.argsort(-1 * scores, axis=0)
@@ -43,39 +83,6 @@ class LocalSearcher(object):
         # Just call the rr_usw function after turning the set-of-tuples order into a sorted-list-based order
         list_order = LocalSearcher.tuples_to_list(order)
         return rr_usw(list_order, self.scores, self.covs, self.loads, self.best_revs)
-
-    def can_delete_or_exchange(self, assigned_agents, assigned_positions, order, matrix_alloc,
-                               current_rev_loads, curr_usw, e):
-        # Check if we can delete or add/exchange the tuple e to improve
-        # update the reviewer loads when we delete or exchange
-        if e[0] in assigned_agents and e[1] in assigned_positions:
-            # Try a deletion operation
-            new_order = order - {e}
-            currently_assigned_revs = np.where(matrix_alloc[:, e[0]])
-            # We can only gain benefit from deleting this paper/agent if it frees up a reviewer
-            if np.any(current_rev_loads[currently_assigned_revs] == 0):
-                new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
-                if new_usw >= self.improvement_factor * curr_usw:
-                    return True
-        else:
-            # Try an exchange operation
-            del_1 = set()
-            del_2 = set()
-
-            if e[0] in assigned_agents or e[1] in assigned_positions:
-                for f in order:
-                    if f[0] == e[0]:
-                        del_1.add(f)
-                    elif f[1] == e[1]:
-                        del_2.add(f)
-            new_order = order - (del_1 | del_2)
-            new_order.add(e)
-
-            new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
-            if new_usw >= self.improvement_factor * curr_usw:
-                return True
-
-        return False
 
     def local_search(self, ground_set, initial):
         order = initial
@@ -125,14 +132,14 @@ class LocalSearcher(object):
                 print("checking elements:")
                 print(elements_to_check)
                 start = time.perf_counter()
-                results = pool.map(lambda e: self.can_delete_or_exchange(assigned_agents,
-                                                                         assigned_positions,
-                                                                         order,
-                                                                         matrix_alloc,
-                                                                         current_rev_loads,
-                                                                         curr_usw,
-                                                                         e),
-                                   elements_to_check)
+
+                def can_delete_or_exchange_helper(e):
+                    return can_delete_or_exchange(assigned_agents, assigned_positions, order, matrix_alloc,
+                                                  current_rev_loads, curr_usw, self.improvement_factor, self.scores,
+                                                  self.covs, self.loads,
+                                                  self.best_revs, e)
+
+                results = pool.map(can_delete_or_exchange_helper, elements_to_check)
                 successes = np.array(list(results))
                 print(time.perf_counter() - start)
                 print(np.any(successes))
@@ -262,6 +269,7 @@ class LocalSearcher(object):
             print(order)
             print(curr_usw)
             times_thru += 1
+            pool.close()
         return order, curr_usw
 
     def get_approx_best_rr(self):
