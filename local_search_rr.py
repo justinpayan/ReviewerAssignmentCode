@@ -3,10 +3,9 @@ import math
 import os
 import random
 import time
-import tqdm
 
 from greedy_rr import rr_usw, rr, _greedy_rr_ordering
-from itertools import product
+from tqdm import tqdm
 from utils import *
 
 
