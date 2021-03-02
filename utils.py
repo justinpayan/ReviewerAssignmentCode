@@ -1,6 +1,10 @@
+import argparse
 import numpy as np
+import pickle
 
 from collections import Counter
+from itertools import product
+from sklearn import metrics
 
 
 def usw(alloc, pra):
@@ -45,42 +49,43 @@ def get_valuation(paper, reviewer_set, paper_reviewer_affinities):
 
 def efx_violations(alloc, pra):
     num_efx_violations = 0
-    for paper in alloc:
-        for paper2 in alloc:
-            if paper != paper2:
-                other = get_valuation(paper, alloc[paper2], pra)
-                curr = get_valuation(paper, alloc[paper], pra)
-                for reviewer in alloc[paper2]:
-                    if other - pra[reviewer, paper] > curr:
-                        num_efx_violations += 1
-                        break
+    n = pra.shape[1]
+    for paper, paper2 in product(range(n), range(n)):
+        if paper != paper2:
+            other = get_valuation(paper, alloc[paper2], pra)
+            curr = get_valuation(paper, alloc[paper], pra)
+            for reviewer in alloc[paper2]:
+                if other - pra[reviewer, paper] > curr:
+                    num_efx_violations += 1
+                    break
 
     return num_efx_violations
 
 
 def ef1_violations(alloc, pra):
-    # print("ef1 violations")
     num_ef1_violations = 0
-    for paper in alloc:
-        for paper2 in alloc:
-            if paper != paper2:
-                other = get_valuation(paper, alloc[paper2], pra)
-                curr = get_valuation(paper, alloc[paper], pra)
-                found_reviewer_to_drop = False
-                if alloc[paper2]:
-                    for reviewer in alloc[paper2]:
-                        if other - pra[reviewer, paper] <= curr:
-                            found_reviewer_to_drop = True
-                            break
-                    if not found_reviewer_to_drop:
-                        num_ef1_violations += 1
+    n = pra.shape[1]
+    for paper, paper2 in product(range(n), range(n)):
+        if paper != paper2:
+            other = get_valuation(paper, alloc[paper2], pra)
+            curr = get_valuation(paper, alloc[paper], pra)
+            found_reviewer_to_drop = False
+            if alloc[paper2]:
+                for reviewer in alloc[paper2]:
+                    if other - pra[reviewer, paper] <= curr:
+                        found_reviewer_to_drop = True
+                        break
+                if not found_reviewer_to_drop:
+                    print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
+                    num_ef1_violations += 1
 
     return num_ef1_violations
 
 
 def paper_coverage_violations(alloc, covs):
     viol = 0
-    for paper, revs in alloc.items():
+    for paper in range(covs.shape[0]):
+        revs = alloc[paper]
         if len(revs) < covs[paper]:
             viol += 1
     return viol
@@ -125,20 +130,82 @@ def reviewer_load_distrib(alloc, m):
                                                 np.std(rev_loads))
 
 
+# Subtract the mean score of the bottom k from the mean score of the top k for k from 1 to n/2.
+# Compute the AUC.
+def compare_bottom_to_top(alloc, pra, covs):
+    paper_scores = [get_valuation(p, alloc[p], pra)/(np.max(pra)*np.max(covs)) for p in alloc]
+    paper_scores = sorted(paper_scores)
+
+    differences = []
+    end_x = int(len(alloc)/2)
+    x = [i/(end_x-1) for i in range(end_x)]
+
+    for k in range(end_x):
+        differences.append(np.mean(paper_scores[-k-1:]) - np.mean(paper_scores[:k+1]))
+
+    print(x)
+    print(differences)
+
+    return metrics.auc(x, differences)
+
+
+# Compute the max number of swaps you can make between envious pairs without causing anyone to drop below the
+# mean. Obviously this is flawed because if you just have a lower mean it is easier to make swaps. But actually that
+# might kind of balance it out. And it begs the question of like why not just minimize this directly?
+def number_of_envy_swaps(alloc, pra):
+    pass
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=str, default="midl")
+    parser.add_argument("--base_dir", type=str, default="/home/justinspayan/Fall_2020/fair-matching/data")
+    parser.add_argument("--seed", type=int, default=31415)
+    parser.add_argument("--alloc_file", type=str, required=True)
+    return parser.parse_args()
+
+
+def save_alloc(alloc, alloc_file):
+    with open(alloc_file, 'wb') as f:
+        pickle.dump(alloc, f)
+
+
+def load_alloc(alloc_file):
+    with open(alloc_file, 'rb') as f:
+        return pickle.load(f)
+
+
 def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     _usw = usw(alloc, paper_reviewer_affinities)
     _nsw = nsw(alloc, paper_reviewer_affinities)
     _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
     _efx = efx_violations(alloc, paper_reviewer_affinities)
+    _auc = compare_bottom_to_top(alloc, paper_reviewer_affinities, covs)
     ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
 
-    print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d \\\\" % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx))
+    print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d & %0.2f \\\\"
+          % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx, _auc))
 
     print("usw: ", _usw)
     print("nsw: ", _nsw)
     print("ef1 violations: ", _ef1)
     print("efx violations: ", _efx)
+    print("auc: ", _auc)
     print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
     print("reviewer load distribution: ", reviewer_load_distrib(alloc, paper_reviewer_affinities.shape[0]))
     print("paper scores: ", ps_min, ps_max, ps_mean, ps_std)
     print()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    dataset = args.dataset
+    alloc_file = args.alloc_file
+
+    alloc = load_alloc(alloc_file)
+
+    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
+    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset)
+    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
+    print(sorted(alloc))
+    print_stats(alloc, paper_reviewer_affinities, paper_capacities)
