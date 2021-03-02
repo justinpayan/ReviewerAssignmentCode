@@ -120,6 +120,9 @@ class LocalSearcher(object):
             with concurrent.futures.ProcessPoolExecutor() as executor:
                 for idx in tqdm(range(math.ceil(len(ground_set) / num_processes))):
                     elements_to_check = ground_set[idx * num_processes: min((idx + 1) * num_processes, len(ground_set))]
+                    print("checking elements:")
+                    print(elements_to_check)
+                    start = time.perf_counter()
                     results = executor.map(lambda e: self.can_delete_or_exchange(assigned_agents,
                                                                                  assigned_positions,
                                                                                  order,
@@ -129,10 +132,15 @@ class LocalSearcher(object):
                                                                                  e),
                                            elements_to_check)
                     successes = np.array(list(results))
+                    print(time.perf_counter() - start)
+                    print(np.any(successes))
                     # Run exactly 1 of them synchronously. Of course, we could run all the successful ones synchronously
                     # but we don't know if some of them will stop being useful once we run the first. So we'll just
                     # ignore all but the first and if it's still relevant by the time we circle back around then great.
                     if np.any(successes):
+                        print("improving the ordering")
+                        start = time.perf_counter()
+
                         e = elements_to_check[np.where(successes)[0][0]]
 
                         if e[0] in assigned_agents and e[1] in assigned_positions:
@@ -175,6 +183,7 @@ class LocalSearcher(object):
                                 assigned_positions.add(e[1])
                                 current_rev_loads = tmp_rev_loads
                                 matrix_alloc = tmp_matrix_alloc
+                        print(time.perf_counter() - start)
 
                     # THE BELOW WAS AN INTENDED SHORTCUT WHERE WE FIRST CHECK IF WE CAN JUST COMPUTE THE NEW USW
                     # ADDITIVELY INSTEAD OF RUNNING RR. IT RUNS A SMALL FRACTION OF THE TIME, SO WE CAN ABANDON THIS PLAN
