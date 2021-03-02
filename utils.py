@@ -165,6 +165,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=31415)
     parser.add_argument("--alloc_file", type=str, required=True)
     parser.add_argument("--local_search_init_order", type=str, default=None)
+    parser.add_argument("--num_processes", type=int, default=20)
     return parser.parse_args()
 
 

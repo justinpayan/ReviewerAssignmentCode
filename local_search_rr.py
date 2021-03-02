@@ -10,7 +10,7 @@ from utils import *
 
 
 class LocalSearcher(object):
-    def __init__(self, scores, loads, covs, epsilon, initial_order):
+    def __init__(self, scores, loads, covs, epsilon, initial_order, num_processes):
         self.best_revs = np.argsort(-1 * scores, axis=0)
         self.scores = scores
         self.loads = loads
@@ -18,6 +18,7 @@ class LocalSearcher(object):
         self.m, self.n = scores.shape
         self.improvement_factor = 1 + epsilon / (self.n ** 4)
         self.initial_order = initial_order
+        self.num_processes = num_processes
 
     @staticmethod
     def tuples_to_list(order):
@@ -116,10 +117,9 @@ class LocalSearcher(object):
             print("additions done")
             print("usw ", curr_usw)
 
-            num_processes = 100
             with concurrent.futures.ProcessPoolExecutor() as executor:
-                for idx in tqdm(range(math.ceil(len(ground_set) / num_processes))):
-                    elements_to_check = ground_set[idx * num_processes: min((idx + 1) * num_processes, len(ground_set))]
+                for idx in tqdm(range(math.ceil(len(ground_set) / self.num_processes))):
+                    elements_to_check = ground_set[idx * self.num_processes: min((idx + 1) * self.num_processes, len(ground_set))]
                     print("checking elements:")
                     print(elements_to_check)
                     start = time.perf_counter()
@@ -293,7 +293,7 @@ class LocalSearcher(object):
         return partial_alloc
 
 
-def run_algo(dataset, base_dir, epsilon, initial_order):
+def run_algo(dataset, base_dir, epsilon, initial_order, num_processes):
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     reviewer_loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
     paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy")).astype(np.int64)
@@ -302,7 +302,7 @@ def run_algo(dataset, base_dir, epsilon, initial_order):
         with open(initial_order, "rb") as f:
             initial_order = pickle.load(f)
 
-    local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon, initial_order)
+    local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon, initial_order, num_processes)
 
     alloc = local_searcher.get_approx_best_rr()
     return alloc
@@ -314,12 +314,13 @@ if __name__ == "__main__":
     base_dir = args.base_dir
     alloc_file = args.alloc_file
     initial_order = args.local_search_init_order
+    num_processes = args.num_processes
 
     random.seed(args.seed)
 
     epsilon = 1 / 5
     start = time.time()
-    alloc = run_algo(dataset, base_dir, epsilon, initial_order)
+    alloc = run_algo(dataset, base_dir, epsilon, initial_order, num_processes)
     runtime = time.time() - start
 
     save_alloc(alloc, alloc_file)
