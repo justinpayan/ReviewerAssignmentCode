@@ -1,5 +1,6 @@
 import concurrent.futures
 import math
+import os
 import random
 import time
 import tqdm
@@ -281,10 +282,10 @@ class LocalSearcher(object):
         return partial_alloc
 
 
-def run_algo(dataset, epsilon):
-    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
-    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
-    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset).astype(np.int64)
+def run_algo(dataset, base_dir, epsilon):
+    paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
+    reviewer_loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
+    paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy")).astype(np.int64)
 
     local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon)
 
@@ -295,13 +296,14 @@ def run_algo(dataset, epsilon):
 if __name__ == "__main__":
     args = parse_args()
     dataset = args.dataset
+    base_dir = args.base_dir
     alloc_file = args.alloc_file
 
     random.seed(args.seed)
 
     epsilon = 1 / 5
     start = time.time()
-    alloc = run_algo(dataset, epsilon)
+    alloc = run_algo(dataset, base_dir, epsilon)
     runtime = time.time() - start
 
     save_alloc(alloc, alloc_file)
@@ -312,8 +314,10 @@ if __name__ == "__main__":
 
     print("Local Search RR Results")
     print("%.2f seconds" % runtime)
-    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
-    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset)
-    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
+
+    paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
+    reviewer_loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
+    paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy"))
+
     print(alloc)
     print_stats(alloc, paper_reviewer_affinities, paper_capacities)

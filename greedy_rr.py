@@ -147,31 +147,36 @@ def get_greedy_rr(pra, covs, loads, best_revs):
     # Add the agent with the best total marginal gain in usw from that round-robin run.
     marginal_gains_ub = {p: np.inf for p in range(n)}
     old_usw = 0
+    global_max_usw = 0
     best_selection_order = None
 
     while len(agent_selection_order) < n:
         print(len(agent_selection_order))
-        max_usw = -1
+        local_max_usw = -1
         next_agent = None
+        global_max_usw_improved = False
         num_evaluated = 0
         for a in set(range(n)) - set(agent_selection_order):
-            if marginal_gains_ub[a] > max_usw - old_usw:
-                # print(marginal_gains_ub[a], max_usw, old_usw)
+            if marginal_gains_ub[a] > local_max_usw - old_usw:
                 num_evaluated += 1
                 a_rr_usw, _, _ = rr_usw(agent_selection_order + [a], pra, covs, loads, best_revs)
                 marginal_gains_ub[a] = a_rr_usw - old_usw
-                if a_rr_usw > max_usw:
-                    max_usw = a_rr_usw
+                if a_rr_usw > local_max_usw:
+                    local_max_usw = a_rr_usw
                     next_agent = a
+                if a_rr_usw > global_max_usw:
+                    global_max_usw = a_rr_usw
+                    global_max_usw_improved = True
         print(num_evaluated)
-        print(max_usw)
+        print(global_max_usw)
+        print(local_max_usw)
         print()
 
         agent_selection_order.append(next_agent)
-        if max_usw > old_usw:
-            best_selection_order = deepcopy(agent_selection_order)
-        old_usw = max_usw
+        old_usw = local_max_usw
 
+        if global_max_usw_improved:
+            best_selection_order = deepcopy(agent_selection_order)
 
     return agent_selection_order, best_selection_order
 
