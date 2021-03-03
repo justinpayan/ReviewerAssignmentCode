@@ -127,7 +127,7 @@ class LocalSearcher(object):
 
             pool = mp.Pool(processes=self.num_processes)
 
-            jobs_per_iter = self.num_processes * 10000
+            jobs_per_iter = self.num_processes * 1000
 
             for idx in tqdm(range(math.ceil(len(ground_set) / jobs_per_iter))):
                 elements_to_check = ground_set[
