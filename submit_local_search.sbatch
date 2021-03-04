@@ -6,8 +6,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=40
 #SBATCH --mem=40G
-#SBATCH --time=04:00:00
-#SBATCH --partition=defq
+#SBATCH --time=06-00:00:00
+#SBATCH --partition=longq
 
 OUTBASE=/mnt/nfs/scratch1/jpayan
 

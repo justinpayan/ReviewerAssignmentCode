@@ -71,6 +71,14 @@ def rr(seln_order, pra, covs, loads, best_revs, output_alloc=True):
 
 
         # THE CODE FROM HERE TO "END" WAS AN ATTEMPT TO VECTORIZE RR WHICH DID NOT SPEED IT UP
+        # TODO: This code also doesn't consider that we are operating over a subset of the papers
+        # TODO: I think we just need to fix that by setting all non-considered papers' reviewers in which_revs
+        # TODO: to -1. Of course, it also isn't considering the selection order at all. But if we can
+        # TODO: modify this code so that it knows which agents we're concerned about and in what order,
+        # TODO: then 1) it might actually speed up RR and 2) it might be possible to feed in a bunch of
+        # TODO: those order arrays and run RR for hundreds or thousands of orders in parallel.
+        # TODO: Maybe we can actually run the whole thing on the GPU and use torch in that case?
+        # TODO: So there won't be any loss computation, just good old-fashioned cuda BLAS operations.
         # This tells each paper which idx of best_rev they will take from next
         # print("starting RR")
         # n = covs.shape[0]
@@ -101,9 +109,7 @@ def rr(seln_order, pra, covs, loads, best_revs, output_alloc=True):
         #         agents_to_update = np.zeros((num_violated_revs, n), dtype=np.int)
         #         agents_to_update[violations[0], violations[1]] = 1
         #
-        #         # TODO: we need to set the first which_agents_to_change nonzero elements of each row to 0
-        #         # TODO: the code commented below does not slice correctly, and also it gets the first i
-        #         # TODO: elements instead of the first i nonzero elements
+        #         # we need to set the first which_agents_to_change nonzero elements of each row to 0
         #         # agents_to_update[range(num_violated_revs), :which_agents_to_change] = 0
         #         cs = np.cumsum(agents_to_update, axis=1)
         #         mask = (cs > which_agents_to_change.reshape((-1, 1)))
