@@ -15,7 +15,7 @@ class SGDSearcher(object):
         self.loads = loads
         self.covs = covs
         self.m, self.n = scores.shape
-        self.lr = 5e-1
+        self.lr = 5e-3
         self.diag_mask = torch.ones((self.n, self.n)) - torch.eye(self.n)
         # self.mult_se = 1
         # self.mult_cov = 1
@@ -34,11 +34,14 @@ class SGDSearcher(object):
     # top n*c for assn_priorities.
     def assn_base_to_feasible_assn(self, assn_base, assn_priorities):
         assignment = nn.functional.softmax(assn_base, dim=1)
+        # assignment = nn.functional.gumbel_softmax(assn_base)
         # assn_priorities = nn.functional.sigmoid(assn_priorities)
 
-        mask = torch.zeros(self.m * self.loads)
-        mask[assn_priorities.topk(self.n * self.covs).indices] = 1
-        return assignment * mask.reshape((-1, 1))
+        # mask = torch.zeros(self.m * self.loads)
+        # mask[assn_priorities.topk(self.n * self.covs).indices] = 1
+        # mask = assn_priorities >= 0
+        # return assignment * mask.reshape((-1, 1))
+        return assignment * (nn.functional.sigmoid(assn_priorities.reshape((-1, 1)))+1)/2
 
     def compute_strong_envy(self, allocation):
         # print(allocation.type())
@@ -75,7 +78,7 @@ class SGDSearcher(object):
     def compute_paper_cov_violations(self, allocation):
         paper_coverage = torch.sum(allocation, dim=0)
         # return torch.abs(self.covs - paper_coverage)
-        return self.covs - paper_coverage
+        return torch.abs(self.covs - paper_coverage)**1.5
 
     def compute_objective(self, assn_base, assn_priorities, u_k, u_r, u_p):
         # Convert x_k into a randomized allocation using just softmax
@@ -110,13 +113,27 @@ class SGDSearcher(object):
                                             # twice to the same paper)
         u_p = torch.ones(self.n)  # lagrange multipliers to force each paper to get c reviewers
 
+        # normalizer = torch.sum(u_k) + torch.sum(u_r) + torch.sum(u_p)
+
+        # u_k /= normalizer
+        # u_r /= normalizer
+        # u_p /= normalizer
+
+        u_k *= 1e-2
+        u_r *= 1e-2
+        u_p *= 1e-2
+
         allocation = None
 
-        outer_tol = 5
+        outer_tol = 10
         outer_prev_obj = np.inf
         counter = 0
 
         for outer_iter in range(100):
+            print(u_k)
+            print(u_r)
+            print(u_p)
+
             # Find the x_k that maximizes the penalized USW
             assignment_base = torch.autograd.Variable(torch.rand(self.scores.shape), requires_grad=True)
             # Determines which good assignment vectors to actually use
@@ -125,7 +142,8 @@ class SGDSearcher(object):
             # print(assignment_base.requires_grad)
             optimizer = torch.optim.Adam([assignment_base, assignment_priorities], lr=self.lr)
 
-            tol = 5e-2
+            # tol = 5e-2
+            tol = 1
             best_obj = -np.inf
             ctr = 0
             num_epochs = int(10000)
@@ -146,12 +164,14 @@ class SGDSearcher(object):
                     best_obj = obj
                 if ctr >= 100:
                     break
-                if epoch % 10 == 0:
+                if epoch % 1000 == 0:
                     print("obj: ", obj)
                     print("usw contrib: ", usw_contrib)
                     print("se_contrib: ", se_contrib)
                     print("cov_contrib: ", cov_contrib)
                     print("rev_contrib: ", rev_contrib)
+                    print("assn_priorities: ", torch.sum((nn.functional.sigmoid(assignment_priorities.reshape((-1, 1)))+1)/2))
+                    # print("assn_priorities: ", (nn.functional.sigmoid(assignment_priorities.reshape((-1, 1)))+1)/2)
 
             if epoch == num_epochs:
                 print("didn't break")
@@ -170,23 +190,35 @@ class SGDSearcher(object):
                     torch.sum(rev_dup_violations) < 1e-9 and \
                     torch.sum(paper_cov_violations) < 1e-9:
                 return self.convert_to_alloc(allocation.numpy())
-            if torch.sum(strong_envy) > 1e-9:
-                u_k += lam_k * strong_envy/torch.sum(strong_envy)
-            if torch.sum(rev_dup_violations) > 1e-9:
-                u_r += lam_k * rev_dup_violations/torch.sum(rev_dup_violations)
-            if torch.sum(paper_cov_violations) > 1e-9:
-                u_p += lam_k * paper_cov_violations/torch.sum(paper_cov_violations)
+            else:
+                norm_const = torch.sum(strong_envy) + torch.sum(rev_dup_violations) + torch.sum(paper_cov_violations)
+                norm_const = norm_const**2
+                # u_k += lam_k * (obj-196) * strong_envy/norm_const
+                # u_r += lam_k * (obj-196) * rev_dup_violations/norm_const
+                # u_p += lam_k * (obj-196) * paper_cov_violations/norm_const
+                u_k += lam_k * 1e3 * strong_envy/torch.sum(strong_envy)**2
+                u_r += lam_k * 1e3 * rev_dup_violations/torch.sum(rev_dup_violations)**2
+                u_p += lam_k * 1e3 * paper_cov_violations/torch.sum(paper_cov_violations)**2
+                u_k = torch.clamp(u_k, min=0)
+                u_r = torch.clamp(u_r, min=0)
+                u_p = torch.clamp(u_p, min=0)
+
+
 
             # Update t_k
+
             if obj >= outer_prev_obj:
                 counter += 1
             else:
                 counter = 0
             if counter % outer_tol == 0:
-                lam_k /= 2
+                lam_k *= 2
             if counter == outer_tol**2:
                 break
 
+            print(torch.sum(u_k))
+            print(torch.sum(u_p))
+            print(torch.sum(u_r))
             print("Max USW - penalty: ", obj)
             print("USW: ", torch.sum(allocation * self.scores))
             print("Strong Envy (EF1): ", torch.sum(strong_envy))
@@ -199,6 +231,7 @@ class SGDSearcher(object):
 
 def run_algo(dataset, base_dir):
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
+    # paper_reviewer_affinities = 10*paper_reviewer_affinities / np.sum(paper_reviewer_affinities)
     reviewer_loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)[0]
     paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy")).astype(np.int64)[0]
 

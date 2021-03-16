@@ -78,7 +78,7 @@ def ef1_violations(alloc, pra):
                         found_reviewer_to_drop = True
                         break
                 if not found_reviewer_to_drop:
-                    print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
+                    # print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
                     num_ef1_violations += 1
 
     return num_ef1_violations
@@ -145,8 +145,8 @@ def compare_bottom_to_top(alloc, pra, covs):
     for k in range(end_x):
         differences.append(np.mean(paper_scores[-k-1:]) - np.mean(paper_scores[:k+1]))
 
-    print(x)
-    print(differences)
+    # print(x)
+    # print(differences)
 
     return metrics.auc(x, differences)
 
