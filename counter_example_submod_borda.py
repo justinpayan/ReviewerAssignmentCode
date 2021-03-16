@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from copy import deepcopy
 from itertools import permutations, chain, combinations, product
 
 
@@ -21,6 +22,85 @@ def powerset(iterable):
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(len(s) + 1))
+
+
+def rr_usw_no_steals(ordering, val_fns, num_rounds=1):
+    if not len(ordering):
+        return 0
+
+    ordering = deepcopy(ordering)
+
+    n, m = val_fns.shape
+
+    matrix_alloc = np.zeros((val_fns.shape), dtype=np.bool)
+    remaining = np.ones((m))
+
+    best_goods = np.argsort(-1*val_fns, axis=1)
+
+    def compute_assignment(ord, best_goods, remaining):
+        rem = remaining.copy()
+        round_alloc = np.zeros((val_fns.shape), dtype=np.bool)
+        for a in ord:
+            for r in best_goods[a, :]:
+                if rem[r]:
+                    rem[r] -= 1
+                    round_alloc[a, r] = 1
+                    break
+        return round_alloc, rem
+
+    # print("\nStarting")
+    # print(ordering)
+
+    for _ in range(num_rounds):
+        round_alloc, remaining = compute_assignment(ordering, best_goods, remaining)
+        matrix_alloc += round_alloc
+
+    # print(matrix_alloc)
+
+    remaining = np.ones((m))
+    dirty_steal = True
+    while dirty_steal:
+        dirty_steal = False
+        for a in ordering:
+            # If it stole, then make the swap and redo
+
+            # print("did {} steal?", a)
+            # Run without that agent
+            test_order = deepcopy(ordering)
+            test_order.remove(a)
+            # print(test_order)
+            test_alloc, _ = compute_assignment(test_order, best_goods, remaining)
+
+            # if np.sum(test_alloc * val_fns) <
+
+            # See if it stole
+            # for a_prime in test_order:
+            #     # print("Did {} steal from {}?", a, a_prime)
+            #     # If the value lost by a_prime is greater than the value gained by a, it's a steal
+            #     value_gained_a = np.sum(matrix_alloc[a, :] * val_fns)
+            #     value_lost_a_prime = np.sum(matrix_alloc[a_prime, :] * val_fns)
+            #     value_gained_a_prime = np.sum(test_alloc[a_prime, :] * val_fns)
+            #     if value_gained_a < value_gained_a_prime - value_lost_a_prime:
+            #         dirty_steal = True
+            #         # print("yes")
+            #
+            #         a_prime_idx = test_order.index(a_prime)
+            #         test_order.insert(a_prime_idx + 1, a)
+            #         ordering = test_order
+            #         break
+            #
+            # if dirty_steal:
+            #     break
+    # print("final ordering: ", ordering)
+
+    for _ in range(num_rounds):
+        round_alloc, remaining = compute_assignment(ordering, best_goods, remaining)
+        matrix_alloc += round_alloc
+
+    # print("in usw")
+    # print(matrix_alloc)
+    # print(val_fns)
+    return np.sum(matrix_alloc * val_fns)
 
 
 def rr_usw(ordering, val_fns, allocate_all=True):
@@ -57,7 +137,7 @@ def rr_usw(ordering, val_fns, allocate_all=True):
     return np.sum(matrix_alloc * val_fns)
 
 
-def check_submodularity(val_fns):
+def check_submodularity(val_fns, fun):
     n, m = val_fns.shape
 
     # For all proper subsets of agents
@@ -69,20 +149,25 @@ def check_submodularity(val_fns):
                 if subset != a_set:
                     for e in set(range(n)) - a_set:
                         for order in permutations(a_set):
+                            # print("order up top: ", order)
                             order = list(order)
                             for i in range(len(a_set)):
                                 # print("calling usw calls")
                                 suborder = [j for j in order if j in subset]
-                                # print(order)
-                                # print(suborder)
+                                # print("order: ", order)
+                                # print(a_set)
+                                # print(set(range(n)))
+                                # print("suborder: ", suborder)
                                 # print(i)
                                 # print(e)
-                                usw_order = rr_usw(order, val_fns)
-                                usw_suborder = rr_usw(suborder, val_fns)
+                                usw_order = fun(order, val_fns)
+                                usw_suborder = fun(suborder, val_fns)
                                 order.insert(i, e)
                                 suborder = [j for j in order if j in (subset | {e})]
-                                usw_order_e = rr_usw(order, val_fns)
-                                usw_suborder_e = rr_usw(suborder, val_fns)
+                                usw_order_e = fun(order, val_fns)
+                                usw_suborder_e = fun(suborder, val_fns)
+                                order.remove(e)
+                                suborder.remove(e)
                                 if usw_order_e - usw_order > usw_suborder_e - usw_suborder:
                                     print(usw_order_e)
                                     print(usw_suborder_e)
@@ -106,9 +191,10 @@ if __name__ == "__main__":
 
         n = 4
         m = 4
-        valuations = np.random.rand(n, m)
-        valuations = to_borda(valuations)
+        # valuations = np.random.rand(n, m)
+        # valuations = to_borda(valuations)
+        valuations = np.array([[3, 4, 1, 2],[2, 1, 3, 4], [1, 3, 2, 4], [2, 4, 1, 3]])
 
         print(valuations)
-        if not check_submodularity(valuations):
+        if not check_submodularity(valuations, rr_usw_no_steals):
             break
