@@ -34,9 +34,9 @@ def schedule_by_conflicts(scores, loads, covs):
     remaining = np.copy(loads)
 
     # Compute conflicts and ordering based on that
-    # TODO: I'm pretty sure this works, it just blows up on my machine. There must be a way to reduce the precision and
-    # get it to work.
-    use_accel = True
+    # This works, it just blows up on my machine. There must be a way to reduce the precision and
+    # get it to work, or maybe to split up the matrix multiplications
+    use_accel = False
     items_in_order_all_agents = np.argsort(scores, axis=0)
     sorted_scores = np.sort(scores, axis=0)
 

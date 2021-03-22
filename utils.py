@@ -81,6 +81,29 @@ def ef1_violations(alloc, pra):
                     # print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
                     num_ef1_violations += 1
 
+    # alternative. Requires a ton of memory.
+    # matrix_alloc = np.zeros((pra.shape))
+    # m, n = pra.shape
+    # for a in alloc:
+    #     for r in alloc[a]:
+    #         matrix_alloc[r, a] = 1
+    # W = np.dot(pra.transpose(), matrix_alloc)
+    # # I want n matrices, where each matrix i has rows j which hold the value of i for items given to j.
+    # # M = (self.scores.reshape((1, self.m, self.n)) * allocation.reshape((self.m, 1, self.n))).transpose(0, 1)
+    # # M = torch.max(M, dim=2).values
+    # M = pra.transpose().reshape(n, m, 1) * matrix_alloc.reshape(1, m, n)
+    #
+    # M = np.max(M, axis=1)
+    # # M's ij element is most valuable item for i in j's bundle. If we just change it so that all items not owned
+    # # by j are worth 1000 and then take the min, this will be EFX instead of EF1.
+    # strong_envy = (W - M) - np.diag(W).reshape((-1, 1))
+    # strong_envy = np.maximum(strong_envy, 0)
+    # diag_mask = np.ones((n, n)) - np.eye(n)
+    # strong_envy = strong_envy * diag_mask
+    # num_ef1_violations = np.sum(strong_envy > 1e-6)
+    #
+    # return num_ef1_violations
+
     return num_ef1_violations
 
 

@@ -51,7 +51,7 @@ def can_delete_or_exchange(input_args):
 
 
 class LocalSearcher(object):
-    def __init__(self, scores, loads, covs, epsilon, initial_order, num_processes):
+    def __init__(self, scores, loads, covs, epsilon, initial_order, num_processes, alloc_file):
         self.best_revs = np.argsort(-1 * scores, axis=0)
         self.scores = scores
         self.loads = loads
@@ -60,6 +60,7 @@ class LocalSearcher(object):
         self.improvement_factor = 1 + epsilon / (self.n ** 4)
         self.initial_order = initial_order
         self.num_processes = num_processes
+        self.alloc_file = alloc_file
 
     @staticmethod
     def tuples_to_list(order):
@@ -290,12 +291,16 @@ class LocalSearcher(object):
         # Run the algorithm from Lee et al. 2009 to get a 4+epsilon approximation to the best RR allocation, for
         # a subset of the agents
         rr_orders = []
+        best_usw = 0
         for _ in range(3):
             initial_ordering = LocalSearcher.list_to_tuples(initial_ordering, ground_set, self.n)
             ls = self.local_search(ground_set, initial=initial_ordering)
             print("\n\ndone\n\n")
             rr_orders.append(ls)
             ground_set -= ls[0]
+            if ls[1] > best_usw:
+                best_usw = ls[1]
+                save_alloc(ls[0], self.alloc_file)
 
         # Pick the best order, compute that partial allocation
         best_option = sorted(rr_orders, key=lambda x: x[1])[-1][0]
@@ -308,7 +313,7 @@ class LocalSearcher(object):
         return partial_alloc
 
 
-def run_algo(dataset, base_dir, epsilon, initial_order, num_processes):
+def run_algo(dataset, base_dir, epsilon, initial_order, num_processes, alloc_file):
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     reviewer_loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
     paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy")).astype(np.int64)
@@ -318,7 +323,7 @@ def run_algo(dataset, base_dir, epsilon, initial_order, num_processes):
             initial_order = pickle.load(f)
 
     local_searcher = LocalSearcher(paper_reviewer_affinities, reviewer_loads, paper_capacities, epsilon, initial_order,
-                                   num_processes)
+                                   num_processes, alloc_file)
 
     alloc = local_searcher.get_approx_best_rr()
     return alloc
@@ -336,7 +341,7 @@ if __name__ == "__main__":
 
     epsilon = 1 / 5
     start = time.time()
-    alloc = run_algo(dataset, base_dir, epsilon, initial_order, num_processes)
+    alloc = run_algo(dataset, base_dir, epsilon, initial_order, num_processes, alloc_file)
     runtime = time.time() - start
 
     save_alloc(alloc, alloc_file)

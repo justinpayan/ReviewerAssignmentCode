@@ -162,7 +162,9 @@ def get_greedy_rr(pra, covs, loads, best_revs):
         next_agent = None
         global_max_usw_improved = False
         num_evaluated = 0
-        for a in set(range(n)) - set(agent_selection_order):
+        for idx, a in enumerate(set(range(n)) - set(agent_selection_order)):
+            if idx % 500 == 0:
+                print("internal idx: ", idx)
             if marginal_gains_ub[a] > local_max_usw - old_usw:
                 num_evaluated += 1
                 a_rr_usw, _, _ = rr_usw(agent_selection_order + [a], pra, covs, loads, best_revs)
@@ -238,12 +240,19 @@ if __name__ == "__main__":
     complete_alloc, _, _ = rr(complete_seln_order, paper_reviewer_affinities, covs, loads, best_revs)
     partial_alloc, _, _ = rr(partial_seln_order, paper_reviewer_affinities, covs, loads, best_revs)
 
-    with open("complete_order_cvpr_debug", "wb") as f:
-        pickle.dump(complete_seln_order, f)
-    with open("partial_order_cvpr_debug", "wb") as f:
+    print(partial_alloc)
+
+    with open("%s_greedy_init_order" % dataset, 'wb') as f:
         pickle.dump(partial_seln_order, f)
-    save_alloc(complete_alloc, "complete_greedy_cvpr_debug")
-    save_alloc(partial_alloc, "partial_greedy_cvpr_debug")
+    # save_alloc(partial_alloc, args.alloc_file)
+    # save_alloc(complete_alloc, args.alloc_file)
+
+    # with open("complete_order_cvpr_debug", "wb") as f:
+    #     pickle.dump(complete_seln_order, f)
+    # with open("partial_order_cvpr_debug", "wb") as f:
+    #     pickle.dump(partial_seln_order, f)
+    # save_alloc(complete_alloc, "complete_greedy_cvpr_debug")
+    # save_alloc(partial_alloc, "partial_greedy_cvpr_debug")
 
 
 

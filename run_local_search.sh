@@ -7,4 +7,4 @@ NUM_PROCESSES=$3
 python local_search_rr.py --dataset $DATASET --base_dir $BASE_DIR \
                           --num_processes=$NUM_PROCESSES \
                           --alloc_file=local_search_${DATASET}_partial_with_greedy_init \
-                          --local_search_init_order partial_order_cvpr_debug
+                          --local_search_init_order ${DATASET}_greedy_init_order
