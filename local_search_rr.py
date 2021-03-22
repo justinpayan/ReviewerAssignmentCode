@@ -280,8 +280,6 @@ class LocalSearcher(object):
         return order, curr_usw
 
     def get_approx_best_rr(self):
-        ground_set = set(product(range(self.n), range(self.n+3)))
-
         # Run the heuristic to get a pretty decent partial allocation. This is a list,
         # but we can convert to a set of tuples depending on the ground set each of the 3 times we run local search.
         if not self.initial_order:
@@ -293,8 +291,9 @@ class LocalSearcher(object):
         # a subset of the agents
         rr_orders = []
         best_usw = 0
-        for _ in range(3):
-            initial_ordering = LocalSearcher.list_to_tuples(initial_ordering, ground_set, self.n+3)
+        for iteration in range(3):
+            ground_set = set(product(range(self.n), range(self.n + iteration)))
+            initial_ordering = LocalSearcher.list_to_tuples(initial_ordering, ground_set, self.n + iteration)
             ls = self.local_search(ground_set, initial=initial_ordering)
             print("\n\ndone\n\n")
             rr_orders.append(ls)
