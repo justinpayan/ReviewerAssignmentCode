@@ -77,11 +77,11 @@ def ef1_violations(alloc, pra):
             if alloc[paper2]:
                 for reviewer in alloc[paper2]:
                     val_dropped = other - pra[reviewer, paper]
-                    if val_dropped < curr or np.allclose(val_dropped, curr):
+                    if val_dropped < curr or np.abs(val_dropped - curr) < 1e-8:
                         found_reviewer_to_drop = True
                         break
                 if not found_reviewer_to_drop:
-                    # print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
+                    print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
                     num_ef1_violations += 1
 
     # alternative. Requires a ton of memory.
@@ -189,9 +189,10 @@ def parse_args():
     parser.add_argument("--dataset", type=str, default="midl")
     parser.add_argument("--base_dir", type=str, default="/home/justinspayan/Fall_2020/fair-matching/data")
     parser.add_argument("--seed", type=int, default=31415)
-    parser.add_argument("--alloc_file", type=str, required=True)
+    parser.add_argument("--alloc_file", type=str)
     parser.add_argument("--local_search_init_order", type=str, default=None)
     parser.add_argument("--num_processes", type=int, default=20)
+    parser.add_argument("--local_search_partial_returned_order", type=str)
     return parser.parse_args()
 
 
