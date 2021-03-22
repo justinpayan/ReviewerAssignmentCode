@@ -153,48 +153,49 @@ class LocalSearcher(object):
                 if np.any(successes):
                     print("improving the ordering")
 
-                    e = elements_to_check[np.where(successes)[0][0]]
+                    for elem_to_check in np.where(successes)[0].tolist():
+                        e = elements_to_check[elem_to_check]
 
-                    if e[0] in assigned_agents and e[1] in assigned_positions:
-                        # Try a deletion operation
-                        new_order = order - {e}
-                        currently_assigned_revs = np.where(matrix_alloc[:, e[0]])
-                        # We can only gain benefit from deleting this paper/agent if it frees up a reviewer
-                        if np.any(current_rev_loads[currently_assigned_revs] == 0):
+                        if e[0] in assigned_agents and e[1] in assigned_positions:
+                            # Try a deletion operation
+                            new_order = order - {e}
+                            currently_assigned_revs = np.where(matrix_alloc[:, e[0]])
+                            # We can only gain benefit from deleting this paper/agent if it frees up a reviewer
+                            if np.any(current_rev_loads[currently_assigned_revs] == 0):
+                                new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
+                                if new_usw >= self.improvement_factor * curr_usw:
+                                    can_improve = True
+                                    curr_usw = new_usw
+                                    order = new_order
+                                    assigned_agents -= {e[0]}
+                                    assigned_positions -= {e[1]}
+                                    current_rev_loads = tmp_rev_loads
+                                    matrix_alloc = tmp_matrix_alloc
+                        else:
+                            # Try an exchange operation
+                            del_1 = set()
+                            del_2 = set()
+
+                            if e[0] in assigned_agents or e[1] in assigned_positions:
+                                for f in order:
+                                    if f[0] == e[0]:
+                                        del_1.add(f)
+                                    elif f[1] == e[1]:
+                                        del_2.add(f)
+                            new_order = order - (del_1 | del_2)
+                            new_order.add(e)
+
                             new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
                             if new_usw >= self.improvement_factor * curr_usw:
                                 can_improve = True
                                 curr_usw = new_usw
                                 order = new_order
-                                assigned_agents -= {e[0]}
-                                assigned_positions -= {e[1]}
+                                assigned_agents -= {t[0] for t in (del_1 | del_2)}
+                                assigned_agents.add(e[0])
+                                assigned_positions -= {t[1] for t in (del_1 | del_2)}
+                                assigned_positions.add(e[1])
                                 current_rev_loads = tmp_rev_loads
                                 matrix_alloc = tmp_matrix_alloc
-                    else:
-                        # Try an exchange operation
-                        del_1 = set()
-                        del_2 = set()
-
-                        if e[0] in assigned_agents or e[1] in assigned_positions:
-                            for f in order:
-                                if f[0] == e[0]:
-                                    del_1.add(f)
-                                elif f[1] == e[1]:
-                                    del_2.add(f)
-                        new_order = order - (del_1 | del_2)
-                        new_order.add(e)
-
-                        new_usw, tmp_rev_loads, tmp_matrix_alloc = self.check_obj(new_order)
-                        if new_usw >= self.improvement_factor * curr_usw:
-                            can_improve = True
-                            curr_usw = new_usw
-                            order = new_order
-                            assigned_agents -= {t[0] for t in (del_1 | del_2)}
-                            assigned_agents.add(e[0])
-                            assigned_positions -= {t[1] for t in (del_1 | del_2)}
-                            assigned_positions.add(e[1])
-                            current_rev_loads = tmp_rev_loads
-                            matrix_alloc = tmp_matrix_alloc
                     print("Updating usw to {} and saving", curr_usw)
                     save_alloc(order, self.alloc_file)
 
