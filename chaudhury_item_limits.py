@@ -267,7 +267,7 @@ def nsw(alloc, pra, caps=None):
         return nsw
 
 
-def get_chaudhury_alloc(loads, scores, caps, epsilon):
+def get_chaudhury_alloc(loads, scores, caps, epsilon, alloc_file):
     # Remove goods with 0 value, save a map that will let us relabel
     # the goods back to their original labels when we finish
     revert_labels_map = get_revert_labels_map(scores)
@@ -308,12 +308,15 @@ def get_chaudhury_alloc(loads, scores, caps, epsilon):
         loop +=1
         if loop % 10 == 0:
             nw = nsw(alloc, scores, caps)
-            print("capped nsw: ", nw)
+            print("nw: ", nw)
+            current_alloc = revert_labels(alloc, prices, revert_labels_map)
+            save_alloc(current_alloc, alloc_file)
+            # print("capped nsw: ", nw)
             # Early stopping, since my impl
             # apparently hits an infinite loop on CVPR somewhere otherwise :(
             # On second thought, it may not even be a loop but rather a really intense search in the graph.
-            if nw > 25:
-                return revert_labels(alloc, prices, revert_labels_map)
+            # if nw > 25:
+            #     return revert_labels(alloc, prices, revert_labels_map)
 
         # BFS for an improving path
         tg = tight_graph(scores, alpha, prices, alloc)
@@ -386,12 +389,8 @@ def add_revs(alloc, paper_reviewer_affinities, paper_capacities, reviewer_load_c
     return _alloc
 
 
-def run_algo(dataset, epsilon):
-    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
-    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
-    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset).astype(np.int64)
-
-    alloc, prices = get_chaudhury_alloc(reviewer_loads, paper_reviewer_affinities, paper_capacities, epsilon)
+def run_algo(dataset, epsilon, scores, covs, loads, alloc_file):
+    alloc, prices = get_chaudhury_alloc(loads, scores, covs, epsilon, alloc_file)
     print("Correctly satisfies the approximate EF1 notion: ", eps_p_ef1(alloc, epsilon * 4, prices=prices))
     return alloc, prices
 
@@ -408,11 +407,11 @@ if __name__ == "__main__":
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
 
     epsilon = 1/5
-    alloc, prices = run_algo(dataset, epsilon)
+    alloc, prices = run_algo(dataset, epsilon, scores, covs, loads, alloc_file)
 
     # Drop and then add (?) reviewers from papers to meet constraints
-    alloc = drop_revs(alloc, paper_reviewer_affinities, covs)
-    alloc = add_revs(alloc, paper_reviewer_affinities, covs, loads)
+    alloc = drop_revs(alloc, scores, covs)
+    alloc = add_revs(alloc, scores, covs, loads)
 
     print(alloc)
 
