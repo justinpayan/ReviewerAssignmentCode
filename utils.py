@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import os
 import pickle
 
 from collections import Counter
@@ -22,7 +23,8 @@ def nsw(alloc, pra):
         paper_score = 0
         for r in alloc[p]:
             paper_score += pra[r, p]
-        nsw *= paper_score**(1/len(alloc))
+        if paper_score:
+            nsw *= paper_score**(1/len(alloc))
     return nsw
 
 
@@ -231,11 +233,12 @@ if __name__ == "__main__":
     args = parse_args()
     dataset = args.dataset
     alloc_file = args.alloc_file
+    base_dir = args.base_dir
 
     alloc = load_alloc(alloc_file)
 
-    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
-    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset)
-    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
-    print(sorted(alloc))
-    print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+    paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
+    covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
+    loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
+    # print(sorted(alloc))
+    print_stats(alloc, paper_reviewer_affinities, covs)
