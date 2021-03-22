@@ -72,7 +72,7 @@ class LocalSearcher(object):
         order = set()
         idx = 0
         for i in order_list:
-            while (i, idx) not in ground_set:
+            while (i, idx) not in ground_set and idx <= n:
                 idx += 1
             if idx >= n:
                 print("Error converting list ordering to tuples")
@@ -280,7 +280,7 @@ class LocalSearcher(object):
         return order, curr_usw
 
     def get_approx_best_rr(self):
-        ground_set = set(product(range(self.n), range(self.n)))
+        ground_set = set(product(range(self.n+3), range(self.n+3)))
 
         # Run the heuristic to get a pretty decent partial allocation. This is a list,
         # but we can convert to a set of tuples depending on the ground set each of the 3 times we run local search.
@@ -294,7 +294,7 @@ class LocalSearcher(object):
         rr_orders = []
         best_usw = 0
         for _ in range(3):
-            initial_ordering = LocalSearcher.list_to_tuples(initial_ordering, ground_set, self.n)
+            initial_ordering = LocalSearcher.list_to_tuples(initial_ordering, ground_set, self.n+3)
             ls = self.local_search(ground_set, initial=initial_ordering)
             print("\n\ndone\n\n")
             rr_orders.append(ls)
