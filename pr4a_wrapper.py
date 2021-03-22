@@ -1,7 +1,6 @@
 # Produce an allocation which has maximal USW subject to the EF1 constraint
 # We will just encode the EF1 constraint in Gurobi and see what happens.
 
-import argparse
 import os
 
 from autoassigner import *
@@ -24,13 +23,6 @@ def pr4a(pra, covs, loads):
 
     print(alloc)
     print_stats(alloc, paper_reviewer_affinities, covs, alg_time=alg_time)
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="midl")
-    parser.add_argument("--base_dir", type=str, default="/home/justinspayan/Fall_2020/fair-matching/data")
-    return parser.parse_args()
 
 
 if __name__ == "__main__":

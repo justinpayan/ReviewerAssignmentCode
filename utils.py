@@ -12,7 +12,8 @@ def usw(alloc, pra):
     for p in alloc:
         for r in alloc[p]:
             usw += pra[r, p]
-    return usw
+    n = pra.shape[1]
+    return usw/n
 
 
 def nsw(alloc, pra):
@@ -210,18 +211,20 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     _auc = compare_bottom_to_top(alloc, paper_reviewer_affinities, covs)
     ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
 
-    print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d & %0.2f \\\\"
-          % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx, _auc))
+    # print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d & %0.2f \\\\"
+    #       % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx, _auc))
+    print("%0.2f & %0.2f & %0.2f & %d \\\\"
+          % (_usw, _nsw, ps_min, _ef1))
 
-    print("usw: ", _usw)
-    print("nsw: ", _nsw)
-    print("ef1 violations: ", _ef1)
-    print("efx violations: ", _efx)
-    print("auc: ", _auc)
-    print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
-    print("reviewer load distribution: ", reviewer_load_distrib(alloc, paper_reviewer_affinities.shape[0]))
-    print("paper scores: ", ps_min, ps_max, ps_mean, ps_std)
-    print()
+    # print("usw: ", _usw)
+    # print("nsw: ", _nsw)
+    # print("ef1 violations: ", _ef1)
+    # print("efx violations: ", _efx)
+    # print("auc: ", _auc)
+    # print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
+    # print("reviewer load distribution: ", reviewer_load_distrib(alloc, paper_reviewer_affinities.shape[0]))
+    # print("paper scores: ", ps_min, ps_max, ps_mean, ps_std)
+    # print()
 
 
 if __name__ == "__main__":

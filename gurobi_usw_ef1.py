@@ -147,8 +147,7 @@ def tpms(pra, covs, loads):
     # Convert to the format we were using, and then print it out and run print_stats
     alloc = convert_to_dict(m, covs.shape[0])
 
-    print(alloc)
-    print_stats(alloc, paper_reviewer_affinities, covs, alg_time=alg_time)
+    return alloc
 
 
 def usw_ef1(pra, covs, loads):
@@ -179,13 +178,6 @@ def usw_ef1(pra, covs, loads):
     print_stats(alloc, paper_reviewer_affinities, covs)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="midl")
-    parser.add_argument("--base_dir", type=str, default="/home/justinspayan/Fall_2020/fair-matching/data")
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
     args = parse_args()
     base_dir = args.base_dir
@@ -195,6 +187,11 @@ if __name__ == "__main__":
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
 
-    tpms(paper_reviewer_affinities, covs, loads)
+    alloc = tpms(paper_reviewer_affinities, covs, loads)
+
+    save_alloc(alloc, args.alloc_file)
+
+    print(alloc)
+    print_stats(alloc, paper_reviewer_affinities, covs)
 
     # usw_ef1(paper_reviewer_affinities, covs, loads)
