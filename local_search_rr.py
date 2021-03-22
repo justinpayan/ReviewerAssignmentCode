@@ -79,6 +79,7 @@ class LocalSearcher(object):
                 raise Exception
             else:
                 order.add((i, idx))
+                idx += 1
         return order
 
     def check_obj(self, order):
