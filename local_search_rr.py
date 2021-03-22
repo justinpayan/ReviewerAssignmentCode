@@ -280,7 +280,7 @@ class LocalSearcher(object):
         return order, curr_usw
 
     def get_approx_best_rr(self):
-        ground_set = set(product(range(self.n+3), range(self.n+3)))
+        ground_set = set(product(range(self.n), range(self.n+3)))
 
         # Run the heuristic to get a pretty decent partial allocation. This is a list,
         # but we can convert to a set of tuples depending on the ground set each of the 3 times we run local search.

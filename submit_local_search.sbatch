@@ -13,6 +13,8 @@ DATASET=$1
 
 OUTBASE=/mnt/nfs/scratch1/jpayan
 
+DATASET=$1
+
 BASE_DIR=${OUTBASE}/fair-matching/data
 OUTBASE=${OUTBASE}/ReviewerAssignmentCode
 
