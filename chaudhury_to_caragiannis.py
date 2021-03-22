@@ -1,8 +1,56 @@
 import math
 import networkx as nx
-import pickle
 
-from utils import *
+from usw_and_ef1 import *
+from copy import deepcopy
+
+def construct_graph(reviewer_loads, paper_reviewer_affinities, paper_capacities):
+    # 1d numpy array, 2d array, 1d numpy array
+    graph = nx.DiGraph()
+
+    reviewers = list(range(reviewer_loads.shape[0]))
+    reviewers = [i + 2 for i in reviewers]
+    papers = list(range(paper_capacities.shape[0]))
+    papers = [i + len(reviewers) + 2 for i in papers]
+
+    supply_and_demand = np.sum(paper_capacities)
+    graph.add_node(0, demand=int(-1*supply_and_demand))
+    graph.add_node(1, demand=int(supply_and_demand))
+
+    for r in reviewers:
+        graph.add_node(r, demand=0)
+    for p in papers:
+        graph.add_node(p, demand=0)
+
+    # Draw edges from reviewers to papers
+    W = int(1e10)
+    for p in papers:
+        for r in reviewers:
+            graph.add_edge(r, p, weight=-1*int(W*paper_reviewer_affinities[r-2, p-len(reviewers)-2]), capacity=1)
+    # Draw edges from source to reviewers
+    for r in reviewers:
+        graph.add_edge(0, r, weight=0, capacity=int(reviewer_loads[r-2]))
+    # Draw edges from papers to sink
+    for p in papers:
+        graph.add_edge(p, 1, weight=0, capacity=int(paper_capacities[p-len(reviewers)-2]))
+
+    return graph
+
+
+def get_alloc_from_flow_result(flowDict, loads, covs):
+    reviewers = list(range(loads.shape[0]))
+    reviewers = [i + 2 for i in reviewers]
+    papers = list(range(covs.shape[0]))
+    papers = [i + len(reviewers) + 2 for i in papers]
+
+    alloc = {p - len(reviewers) - 2: set() for p in papers}
+
+    for r in reviewers:
+        for p in papers:
+            if flowDict[r][p] == 1:
+                alloc[p - len(reviewers) - 2].add(r - 2)
+
+    return alloc
 
 
 def perform_rounding(pra, pc, r):
@@ -54,24 +102,40 @@ def compute_p(paper, alloc, scores, alpha):
     return sum([scores[rev, paper] for rev in alloc[paper]])/alpha[paper]
 
 
-def select_i(alloc, prices, caps, scores, alpha):
+def select_i(alloc, prices, caps, scores, alpha, disallowed_i):
     i = None
     i_p = np.inf
     for paper in alloc:
-        # We want the least-spending, uncapped agent.
-        bundle_sz = len(alloc[paper])
+        util = sum([prices[rev] for rev in alloc[paper]])
         p = compute_p(paper, alloc, scores, alpha)
-        if bundle_sz < caps[paper] and p < i_p:
+        if util < caps[paper] and p < i_p and paper not in disallowed_i:
             i = paper
             i_p = p
     return i
 
 
+# Just represent the tight graph as a pair of dictionaries, one maps agents to their forward neighbors, and the
+# other maps goods to their forward neighbors.
+# def tight_graph(scores, alpha, prices, alloc):
+#     n = len(alpha)
+#     m = len(prices)
+#
+#     agent_neighbors = {a: set() for a in range(n)}
+#     good_neighbors = {g: set() for g in range(m)}
+#
+#     for agent in range(n):
+#         for good in range(m):
+#             if good not in alloc[agent] and alpha[agent] == scores[good, agent]/prices[good]:
+#                 agent_neighbors[agent].add(good)
+#             if good in alloc[agent] and alpha[agent] == scores[good, agent]/prices[good]:
+#                 good_neighbors[good].add(agent)
+#
+#     return agent_neighbors, good_neighbors
+
+
 def tight_graph(scores, alpha, prices, alloc):
     n = len(alpha)
     m = len(prices)
-
-    prices = np.array([prices[g] for g in range(len(prices))])
 
     agents = [a for a in range(n)]
     goods = [g + n for g in range(m)]
@@ -79,15 +143,12 @@ def tight_graph(scores, alpha, prices, alloc):
     fwd_nbrs = {v: set() for v in range(n+m)}
 
     for agent in agents:
-        edges_to_goods = np.where(np.isclose(alpha[agent], scores[:, agent]/prices))[0]
-        if edges_to_goods.shape[0] > 0:
-            for good in np.nditer(edges_to_goods):
-                if good not in alloc[agent]:
-                    fwd_nbrs[agent].add(good+n)
-
-        for g in alloc[agent]:
-            if math.isclose(alpha[agent], scores[g, agent]/prices[g]):
-                fwd_nbrs[g+n].add(agent)
+        for g in goods:
+            good = g - n
+            if good not in alloc[agent] and math.isclose(alpha[agent], scores[good, agent] / prices[good]):
+                fwd_nbrs[agent].add(g)
+            if good in alloc[agent] and math.isclose(alpha[agent], scores[good, agent]/prices[good]):
+                fwd_nbrs[g].add(agent)
 
     return fwd_nbrs
 
@@ -129,9 +190,78 @@ def bfs(i, tight_graph, alloc, epsilon, scores, alpha):
                     imp_path.insert(0, curr)
                     curr = backptrs[curr]
                 imp_path.insert(0, i)
-                return correct_offset(imp_path, n), visited_nodes, bfs_queue
+                return correct_offset(imp_path, n)
 
-    return None, visited_nodes, bfs_queue
+    return None
+
+# Perform a BFS starting at i. Return the first "improving path" we find.
+# def bfs(i, an, gn, alloc, epsilon, scores, alpha):
+#     bfs_queue = [i]
+#     search_radius_queue = [0]
+#     agent_backptrs = {}
+#     good_backptrs = {}
+#     i_p = compute_p(i, alloc, scores, alpha)
+#     visited_agents = {i}
+#     visited_goods = set()
+#
+#     visited_sets = [visited_agents, visited_goods]
+#     backptrs = [good_backptrs, agent_backptrs]
+#     maps = [an, gn]
+#
+#     while len(bfs_queue) > 0:
+#         curr = bfs_queue.pop(0)
+#         search_radius = search_radius_queue.pop(0)
+#
+#         mod = search_radius % 2
+#
+#         visited_sets[mod].add(curr)
+#         nbrs = maps[mod][curr]
+#         for n in nbrs:
+#             backptrs[mod][n] = curr
+#             if n not in visited_sets[(mod + 1) % 2]:
+#                 bfs_queue.append(n)
+#                 search_radius_queue.append(search_radius + 1)
+#
+#         # if search_radius % 2 == 0:
+#         #     # agent
+#         #     visited_agents.add(curr)
+#         #     nbrs = an[curr]
+#         #     for n in nbrs:
+#         #         good_backptrs[n] = curr
+#         #         if n not in visited_goods:
+#         #             bfs_queue.append(n)
+#         #             search_radius_queue.append(search_radius + 1)
+#         # else:
+#         #     # good
+#         #     visited_goods.add(curr)
+#         #     nbrs = gn[curr]
+#         #     for n in nbrs:
+#         #         agent_backptrs[n] = curr
+#         #         if n not in visited_agents:
+#         #             bfs_queue.append(n)
+#         #             search_radius_queue.append(search_radius + 1)
+#
+#         # Check for the end condition and terminate if so
+#         if search_radius % 2 == 0 and search_radius > 0:
+#             p_ah = compute_p(curr, alloc, scores, alpha) - scores[agent_backptrs[curr], curr]/alpha[curr]
+#             if p_ah > (1+epsilon) * i_p:
+#                 # Found an improving path
+#                 imp_path = []
+#                 while search_radius > 0 and \
+#                         ((curr in agent_backptrs and search_radius % 2 == 0) or
+#                          (curr in good_backptrs and search_radius % 2 == 1)):
+#                     imp_path.insert(0, curr)
+#                     if search_radius % 2 == 0:
+#                         curr = agent_backptrs[curr]
+#                     else:
+#                         curr = good_backptrs[curr]
+#                     search_radius -= 1
+#                 imp_path.insert(0, i)
+#                 return imp_path
+#
+#         search_radius += 1
+#
+#     return None
 
 
 # Follow the improving path backward, reassigning goods as you go.
@@ -147,7 +277,10 @@ def perform_swaps(alloc, imp, epsilon, scores, alpha):
     return alloc
 
 
-def get_reachable(tg, n, visited_nodes, queue):
+def get_reachable(i, tg, n):
+    queue = [i]
+    visited_nodes = set()
+
     while len(queue):
         curr = queue.pop(0)
 
@@ -160,6 +293,34 @@ def get_reachable(tg, n, visited_nodes, queue):
     visited_agents = {a for a in visited_nodes if a < n}
 
     return visited_goods, visited_agents, set(range(len(tg)-n)) - visited_goods, set(range(n)) - visited_agents
+
+
+# def get_reachable(i, tg):
+#     queue = [i]
+#     search_radius = 0
+#     visited_goods = set()
+#     visited_agents = {i}
+#
+#     while len(queue):
+#         curr = queue.pop(0)
+#         while len(queue) > 0:
+#             curr = queue.pop(0)
+#             if search_radius % 2 == 0:
+#                 # agent
+#                 visited_agents.add(curr)
+#                 for n in an[curr]:
+#                     if n not in visited_agents:
+#                         queue.append(n)
+#             else:
+#                 # good
+#                 visited_goods.add(curr)
+#                 for n in gn[curr]:
+#                     if n not in visited_goods:
+#                         queue.append(n)
+#
+#         search_radius += 1
+#
+#     return visited_goods, visited_agents, set(range(len(gn))) - visited_goods, set(range(len(an))) - visited_agents
 
 
 def compute_beta(reach_goods, reach_agents, unreach_goods, unreach_agents, prices, scores, alloc, alpha, r, i, caps):
@@ -186,17 +347,13 @@ def compute_beta(reach_goods, reach_agents, unreach_goods, unreach_agents, price
         beta3 = (1/(r**2 * i_p)) * beta3
 
         h_p = np.inf
-        h = None
         for paper in unreach_agents:
+            util = sum([scores[rev, paper] for rev in alloc[paper]])
             p = compute_p(paper, alloc, scores, alpha)
-            if len(alloc[paper]) < caps[paper] and p < h_p:
+            if util < caps[paper] and p < h_p:
                 h_p = p
-                h = paper
-        if h is not None:
-            s_bound = np.log(h_p/i_p)/np.log(r)
-            beta4 = r**(math.floor(s_bound)+1)
-        else:
-            beta4 = np.inf
+        s_bound = np.log(h_p/i_p)/np.log(r)
+        beta4 = r**(math.floor(s_bound)+1)
 
     else:
         beta3 = np.inf
@@ -249,25 +406,7 @@ def revert_labels(alloc, prices, r_map):
     return _alloc, _prices
 
 
-def nsw(alloc, pra, caps=None):
-    if caps is not None:
-        nsw = 1
-        for p in alloc:
-            paper_scores = [pra[r, p] for r in alloc[p]]
-            paper_scores = sorted(paper_scores, reverse=True)[:caps[p]]
-            nsw *= sum(paper_scores)**(1/len(alloc))
-        return nsw
-    else:
-        nsw = 1
-        for p in alloc:
-            paper_score = 0
-            for r in alloc[p]:
-                paper_score += pra[r, p]
-            nsw *= paper_score ** (1 / len(alloc))
-        return nsw
-
-
-def get_barman_alloc(loads, scores, caps, epsilon):
+def get_chaudhury_alloc(loads, scores, caps, epsilon):
     # Remove goods with 0 value, save a map that will let us relabel
     # the goods back to their original labels when we finish
     revert_labels_map = get_revert_labels_map(scores)
@@ -282,7 +421,7 @@ def get_barman_alloc(loads, scores, caps, epsilon):
     scores, caps = perform_rounding(scores, caps, r)
 
     # Cap the valuations (just keep track of dups during the algorithm e.g. by setting values to 0 if dups)
-    # scores = np.minimum(caps.reshape(1, -1) * np.ones(scores.shape), scores)
+    scores = np.minimum(caps.reshape(1, -1) * np.ones(scores.shape), scores)
 
     # Greedy initial assignment, price setting
     alloc, prices = greedy_initial_assignment(loads, scores)
@@ -290,34 +429,31 @@ def get_barman_alloc(loads, scores, caps, epsilon):
     # Set MBB ratios
     alpha = np.ones(caps.shape)
 
+    disallowed_i = set()
+
     loop = 0
     # old_alloc = deepcopy(alloc)
     # old_alpha = deepcopy(alpha)
     while True:
         # check epsilon-p-EF1, maybe finish
         if eps_p_ef1(alloc, epsilon, scores=scores, alpha=alpha):
-            print("nsw at end1: ", nsw(alloc, scores, caps))
+            print("nsw at end1: ", nsw(alloc,scores))
             return revert_labels(alloc, prices, revert_labels_map)
 
         # Select i
-        i = select_i(alloc, prices, caps, scores, alpha)
+        i = select_i(alloc, prices, caps, scores, alpha, disallowed_i)
         print("i: ", i)
-        if i is None:
-            # Another stopping condition. If all agents are capped, that means we cannot improve.
-            return revert_labels(alloc, prices, revert_labels_map)
         loop +=1
         if loop % 10 == 0:
-            nw = nsw(alloc, scores, caps)
-            print("capped nsw: ", nw)
-            # Early stopping, since my impl
-            # apparently hits an infinite loop on CVPR somewhere otherwise :(
-            # On second thought, it may not even be a loop but rather a really intense search in the graph.
-            if nw > 25:
+            nw = nsw(alloc, scores)
+            print("nsw: ", nw)
+            if nw > 2.02:
                 return revert_labels(alloc, prices, revert_labels_map)
+
 
         # BFS for an improving path
         tg = tight_graph(scores, alpha, prices, alloc)
-        shortest_improving_path, bfs_visited_nodes, bfs_queue = bfs(i, tg, alloc, epsilon, scores, alpha)
+        shortest_improving_path = bfs(i, tg, alloc, epsilon, scores, alpha)
         # print(shortest_improving_path)
 
         if shortest_improving_path:
@@ -325,7 +461,7 @@ def get_barman_alloc(loads, scores, caps, epsilon):
             # disallowed_i = set()
         else:
             # Update prices and MBB ratios
-            reach_goods, reach_agents, unreach_goods, unreach_agents = get_reachable(tg, len(caps), bfs_visited_nodes, bfs_queue)
+            reach_goods, reach_agents, unreach_goods, unreach_agents = get_reachable(i, tg, len(caps))
             beta, break_after = compute_beta(reach_goods, reach_agents, unreach_goods, unreach_agents, prices, scores, alloc, alpha, r, i, caps)
             print(beta)
 
@@ -341,7 +477,7 @@ def get_barman_alloc(loads, scores, caps, epsilon):
                 alpha[a] /= beta
 
             if break_after:
-                print("nsw at end: ", nsw(alloc, scores, caps))
+                print("nsw at end: ", nsw(alloc, scores))
                 return revert_labels(alloc, prices, revert_labels_map)
 
         # loop += 1
@@ -367,98 +503,52 @@ def drop_revs(alloc, scores, covs):
     return _alloc
 
 
-def add_revs(alloc, paper_reviewer_affinities, paper_capacities, reviewer_load_caps):
-    _alloc = {}
-    rev_loads = Counter()
-    for rev_set in alloc.values():
-        for r in rev_set:
-            rev_loads[r] += 1
-
-    for paper, rev_set in alloc.items():
-        best_revs = np.argsort(paper_reviewer_affinities[:, paper])[::-1].tolist()
-        while len(rev_set) < paper_capacities[paper]:
-            r = best_revs.pop(0)
-            if r not in rev_set and rev_loads[r] < reviewer_load_caps[r]:
-                rev_set.append(r)
-                rev_loads[r] += 1
-        _alloc[paper] = rev_set
-
-    return _alloc
-
-
-def run_algo(dataset, epsilon):
-    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
-    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
-    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset).astype(np.int64)
-
-    alloc, prices = get_barman_alloc(reviewer_loads, paper_reviewer_affinities, paper_capacities, epsilon)
-    print("Correctly satisfies the approximate EF1 notion: ", eps_p_ef1(alloc, epsilon * 4, prices=prices))
-    return alloc, prices
-
-
-def save_alloc(alloc, prices, dataset, msg):
-    with open("%s_item_limits_alloc_%s" % (dataset, msg), 'wb') as f:
-        pickle.dump(alloc, f)
-    with open("%s_item_limits_prices_%s" % (dataset, msg), 'wb') as f:
-        pickle.dump(prices, f)
+def print_stats(alloc, paper_reviewer_affinities, covs):
+    print("usw: ", usw(alloc, paper_reviewer_affinities))
+    print("nsw: ", nsw(alloc, paper_reviewer_affinities))
+    print("ef1 violations: ", ef1_violations(alloc, paper_reviewer_affinities))
+    print("efx violations: ", efx_violations(alloc, paper_reviewer_affinities))
+    print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
+    print("reviewer load distribution: ", reviewer_load_distrib(alloc))
+    print("paper scores: ", paper_score_stats(alloc, paper_reviewer_affinities))
+    print()
 
 
 if __name__ == "__main__":
     # We want to obtain a 1.44-NSW allocation, which should also be 4-epsilon price envy free up to 1 item.
+
     dataset = sys.argv[1]
-    dry_run = sys.argv[2]
-
-    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
-    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset)
-    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset).astype(np.int64)
-
-
-    if dry_run != "dry":
-        epsilon = 1/5
-        start = time.time()
-        # alloc, prices = run_algo(dataset, epsilon)
-        runtime = time.time() - start
-
-        with open('cvpr2018_item_limits_alloc_', 'rb') as inf:
-            alloc = pickle.load(inf)
-        with open('cvpr2018_item_limits_prices_', 'rb') as inf:
-            prices = pickle.load(inf)
-
-        print(alloc)
-
-        # save_alloc(alloc, prices, dataset, "")
-
-        # print("Barman Algorithm Results")
-        # print("%.2f seconds" % runtime)
-        # print_stats(alloc, paper_reviewer_affinities, paper_capacities)
-
-        # Drop and then add (?) reviewers from papers to meet constraints
-        alloc = drop_revs(alloc, paper_reviewer_affinities, paper_capacities)
-        alloc = add_revs(alloc, paper_reviewer_affinities, paper_capacities, reviewer_loads)
-
-        print(alloc)
-
-        save_alloc(alloc, prices, dataset, "cov_corr")
-
-        print("Barman-Item-Caps (Meeting Constraints) Results")
-        print("%.2f seconds" % runtime)
-        print_stats(alloc, paper_reviewer_affinities, paper_capacities)
-
-    # Load the fairflow solution without the reviewer lower bounds...
     timestamps = {"cvpr": "2020-09-16-10-28-42", "cvpr2018": "2020-09-16-10-26-09", "midl": "2020-09-16-09-32-53"}
 
+    paper_reviewer_affinities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/scores.npy" % dataset)
+    reviewer_loads = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/loads.npy" % dataset)
+    paper_capacities = np.load("/home/justinspayan/Fall_2020/fair-matching/data/%s/covs.npy" % dataset)
+
+    start = time.time()
+    epsilon = 1/5
+    alloc, prices = get_chaudhury_alloc(reviewer_loads, paper_reviewer_affinities, paper_capacities, epsilon)
+    print("Correctly satisfies the approximate EF1 notion: ", eps_p_ef1(alloc, epsilon*4, prices=prices))
+    runtime = time.time() - start
+
+    print(alloc)
+
+    print("chaudhury Algorithm Results")
+    print("%.2f seconds" % runtime)
+    print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+
+    # Try dropping reviewers from papers to meet constraints
+    alloc = drop_revs(alloc, paper_reviewer_affinities, paper_capacities)
+
+    print(alloc)
+
+    print("chaudhury (Meeting Constraints) Results")
+    print("%.2f seconds" % runtime)
+    print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+
+    # Load the fairflow solution for MIDL without the reviewer lower bounds...
     fairflow_soln = load_fairflow_soln("/home/justinspayan/Fall_2020/fair-matching/exp_out/%s/fairflow/"
                                        "%s/results/assignment.npy" % (dataset, timestamps[dataset]))
     print("Fairflow Results")
     print_stats(fairflow_soln, paper_reviewer_affinities, paper_capacities)
-    print("***********\n***********\n")
-
-    # FairIR solutions
-    timestamps = {"cvpr": "2021-01-07-12-07-19", "cvpr2018": "2021-01-07-12-29-03", "midl": "2020-09-18-14-42-49"}
-
-    fairir_soln = load_fairflow_soln("/home/justinspayan/Fall_2020/fair-matching/exp_out/%s/fairir/"
-                                       "%s/results/assignment.npy" % (dataset, timestamps[dataset]))
-    print("FairIR Results")
-    print_stats(fairir_soln, paper_reviewer_affinities, paper_capacities)
     print("***********\n***********\n")
 
