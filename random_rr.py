@@ -62,7 +62,7 @@ if __name__ == "__main__":
     ps_means = []
     ps_stds = []
     # all_stats = [times, usws, nsws, ef1s, efxs, ps_mins, ps_maxs, ps_means, ps_stds]
-    all_stats = [times, usws, nsws, ps_mins, ps_means, ef1s, efxs]
+    all_stats = [usws, nsws, ps_mins, ef1s]
 
 
     for _ in range(10):

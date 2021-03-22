@@ -406,8 +406,9 @@ if __name__ == "__main__":
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
 
-    epsilon = 1/5
-    alloc, prices = run_algo(dataset, epsilon, scores, covs, loads, alloc_file)
+    # epsilon = 1/5
+    # alloc, prices = run_algo(dataset, epsilon, scores, covs, loads, alloc_file)
+    alloc = load_alloc(alloc_file)
 
     # Drop and then add (?) reviewers from papers to meet constraints
     alloc = drop_revs(alloc, scores, covs)
@@ -417,5 +418,5 @@ if __name__ == "__main__":
 
     print("Chaudhury Algorithm Results")
 
-    save_alloc(alloc, alloc_file)
+    save_alloc(alloc, alloc_file + "_drop_add")
     print_stats(alloc, scores, covs)

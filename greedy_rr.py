@@ -225,7 +225,7 @@ if __name__ == "__main__":
     base_dir = args.base_dir
     dataset = args.dataset
 
-    paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
+    scores = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
 
@@ -233,19 +233,19 @@ if __name__ == "__main__":
         print("covs must be homogenous")
         sys.exit(1)
 
-    # greedy_rr(paper_reviewer_affinities, covs, loads, args.alloc_file)
-    best_revs = np.argsort(-1 * paper_reviewer_affinities, axis=0)
+    best_revs = np.argsort(-1 * scores, axis=0)
 
-    complete_seln_order, partial_seln_order = get_greedy_rr(paper_reviewer_affinities, covs, loads, best_revs)
-    complete_alloc, _, _ = rr(complete_seln_order, paper_reviewer_affinities, covs, loads, best_revs)
-    partial_alloc, _, _ = rr(partial_seln_order, paper_reviewer_affinities, covs, loads, best_revs)
+    complete_seln_order, partial_seln_order = get_greedy_rr(scores, covs, loads, best_revs)
+    complete_alloc, _, _ = rr(complete_seln_order, scores, covs, loads, best_revs)
+    partial_alloc, _, _ = rr(partial_seln_order, scores, covs, loads, best_revs)
 
     print(partial_alloc)
 
     with open("%s_greedy_init_order" % dataset, 'wb') as f:
         pickle.dump(partial_seln_order, f)
     # save_alloc(partial_alloc, args.alloc_file)
-    # save_alloc(complete_alloc, args.alloc_file)
+    save_alloc(complete_alloc, args.alloc_file)
+    print_stats(complete_alloc, scores, covs)
 
     # with open("complete_order_cvpr_debug", "wb") as f:
     #     pickle.dump(complete_seln_order, f)
