@@ -293,8 +293,8 @@ class LocalSearcher(object):
         best_usw = 0
         for iteration in range(3):
             ground_set = set(product(range(self.n), range(self.n + iteration)))
-            initial_ordering = LocalSearcher.list_to_tuples(initial_ordering, ground_set, self.n + iteration)
-            ls = self.local_search(ground_set, initial=initial_ordering)
+            init_o = LocalSearcher.list_to_tuples(initial_ordering, ground_set, self.n + iteration)
+            ls = self.local_search(ground_set, initial=init_o)
             print("\n\ndone\n\n")
             rr_orders.append(ls)
             ground_set -= ls[0]
