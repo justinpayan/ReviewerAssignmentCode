@@ -16,7 +16,7 @@ class auto_assigner:
     # function - transformation function of similarities
     # iter_limit - maximum number of iterations of Steps 2 to 7
     # time_limit - time limit in seconds. The algorithm performs iterations of Steps 2 to 7 until the time limit is exceeded
-    def __init__(self, simmatrix, demand=3, ability=3, function=lambda x: x, iter_limit=np.inf, time_limit=np.inf):
+    def __init__(self, simmatrix, demand=3, ability=None, function=lambda x: x, iter_limit=np.inf, time_limit=np.inf):
         self.simmatrix = simmatrix
         self.numrev = simmatrix.shape[0]
         self.numpapers = simmatrix.shape[1]
@@ -200,7 +200,8 @@ class auto_assigner:
         current_best = None
         current_best_score = 0
         local_simmatrix = self.simmatrix.copy()
-        local_abilities = self.ability * np.ones(self.numrev)
+        # local_abilities = self.ability * np.ones(self.numrev)
+        local_abilities = self.ability
         not_assigned = set(range(self.numpapers))
         final_assignment = {}
 

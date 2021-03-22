@@ -408,7 +408,7 @@ if __name__ == "__main__":
 
     # epsilon = 1/5
     # alloc, prices = run_algo(dataset, epsilon, scores, covs, loads, alloc_file)
-    alloc = load_alloc(alloc_file)
+    alloc = load_alloc(alloc_file)[0]
 
     # Drop and then add (?) reviewers from papers to meet constraints
     alloc = drop_revs(alloc, scores, covs)
