@@ -129,13 +129,11 @@ class LocalSearcher(object):
 
             pool = mp.Pool(processes=self.num_processes)
 
-            jobs_per_iter = self.num_processes * 1000
+            jobs_per_iter = self.num_processes * 10
 
             for idx in tqdm(range(math.ceil(len(ground_set) / jobs_per_iter))):
                 elements_to_check = ground_set[
                                     idx * jobs_per_iter: min((idx + 1) * jobs_per_iter, len(ground_set))]
-                print("checking this number of elements:")
-                print(len(elements_to_check))
                 start = time.perf_counter()
 
                 list_of_copied_args = []
@@ -144,7 +142,6 @@ class LocalSearcher(object):
                                  self.covs, self.loads, self.best_revs]:
                     list_of_copied_args.append(len(elements_to_check) * [argument])
                 list_of_copied_args.append(elements_to_check)
-                print(time.perf_counter() - start)
 
                 results = pool.map(can_delete_or_exchange, zip(*list_of_copied_args))
                 successes = np.array(list(results))
@@ -155,7 +152,6 @@ class LocalSearcher(object):
                 # ignore all but the first and if it's still relevant by the time we circle back around then great.
                 if np.any(successes):
                     print("improving the ordering")
-                    start = time.perf_counter()
 
                     e = elements_to_check[np.where(successes)[0][0]]
 
@@ -199,7 +195,8 @@ class LocalSearcher(object):
                             assigned_positions.add(e[1])
                             current_rev_loads = tmp_rev_loads
                             matrix_alloc = tmp_matrix_alloc
-                    print(time.perf_counter() - start)
+                    print("Updating usw to {} and saving", curr_usw)
+                    save_alloc(order, self.alloc_file)
 
                     # THE BELOW WAS AN INTENDED SHORTCUT WHERE WE FIRST CHECK IF WE CAN JUST COMPUTE THE NEW USW
                     # ADDITIVELY INSTEAD OF RUNNING RR. IT RUNS A SMALL FRACTION OF THE TIME, SO WE CAN ABANDON THIS PLAN
@@ -300,7 +297,7 @@ class LocalSearcher(object):
             ground_set -= ls[0]
             if ls[1] > best_usw:
                 best_usw = ls[1]
-                save_alloc(ls[0], self.alloc_file)
+                save_alloc(ls[0], self.alloc_file + "_best")
 
         # Pick the best order, compute that partial allocation
         best_option = sorted(rr_orders, key=lambda x: x[1])[-1][0]
