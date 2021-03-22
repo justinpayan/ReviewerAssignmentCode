@@ -1,8 +1,10 @@
 #! /bin/bash
 
-#SBATCH --job-name=cvpr_local_search
-#SBATCH --output=cvpr_local_search.out
-#SBATCH --error=cvpr_local_search.err
+DATASET=$1
+
+#SBATCH --job-name=${DATASET}_local_search
+#SBATCH --output=${DATASET}_local_search.out
+#SBATCH --error=${DATASET}_local_search.err
 #SBATCH --nodes=1
 #SBATCH --ntasks=40
 #SBATCH --mem=40G
@@ -11,7 +13,6 @@
 
 OUTBASE=/mnt/nfs/scratch1/jpayan
 
-DATASET=$1
 BASE_DIR=${OUTBASE}/fair-matching/data
 OUTBASE=${OUTBASE}/ReviewerAssignmentCode
 
