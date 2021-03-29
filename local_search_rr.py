@@ -4,7 +4,7 @@ import os
 import random
 import time
 
-from greedy_rr import rr_usw, rr, _greedy_rr_ordering
+from greedy_rr import safe_rr_usw, safe_rr, _greedy_rr_ordering
 from tqdm import tqdm
 from utils import *
 
@@ -12,7 +12,7 @@ from utils import *
 def check_obj(order, scores, covs, loads, best_revs):
     # Just call the rr_usw function after turning the set-of-tuples order into a sorted-list-based order
     list_order = LocalSearcher.tuples_to_list(order)
-    return rr_usw(list_order, scores, covs, loads, best_revs)
+    return safe_rr_usw(list_order, scores, covs, loads, best_revs)
 
 
 def can_delete_or_exchange(input_args):
@@ -85,7 +85,7 @@ class LocalSearcher(object):
     def check_obj(self, order):
         # Just call the rr_usw function after turning the set-of-tuples order into a sorted-list-based order
         list_order = LocalSearcher.tuples_to_list(order)
-        return rr_usw(list_order, self.scores, self.covs, self.loads, self.best_revs)
+        return safe_rr_usw(list_order, self.scores, self.covs, self.loads, self.best_revs)
 
     def local_search(self, ground_set, initial):
         order = initial
@@ -304,7 +304,7 @@ class LocalSearcher(object):
         best_option = sorted(rr_orders, key=lambda x: x[1])[-1][0]
         # Convert to list, use the other file's functions to get alloc
         partial_order = LocalSearcher.tuples_to_list(best_option)
-        partial_alloc, _, _ = rr(partial_order, self.scores, self.covs, self.loads, self.best_revs, output_alloc=True)
+        partial_alloc, _, _ = safe_rr(partial_order, self.scores, self.covs, self.loads, self.best_revs, output_alloc=True)
 
         # TODO: run Lipton to complete the allocation. Can we guarantee this will always work?
 

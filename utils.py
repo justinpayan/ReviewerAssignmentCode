@@ -3,7 +3,7 @@ import numpy as np
 import os
 import pickle
 
-from collections import Counter
+from collections import Counter, defaultdict
 from itertools import product
 from sklearn import metrics
 
@@ -204,6 +204,221 @@ def save_alloc(alloc, alloc_file):
 def load_alloc(alloc_file):
     with open(alloc_file, 'rb') as f:
         return pickle.load(f)
+
+
+# Return the usw of running round robin on the agents in the list "seln_order"
+def safe_rr_usw(seln_order, pra, covs, loads, best_revs):
+    # rr_alloc, rev_loads_remaining, matrix_alloc = rr(seln_order, pra, covs, loads, best_revs)
+    _, rev_loads_remaining, matrix_alloc = safe_rr(seln_order, pra, covs, loads, best_revs)
+    # _usw = usw(rr_alloc, pra)
+    _usw = np.sum(matrix_alloc * pra)
+    # print("USW ", time.time() - start)
+    return _usw, rev_loads_remaining, matrix_alloc
+
+
+# Return the usw of running round robin on the agents in the list "seln_order"
+def rr_usw(seln_order, pra, covs, loads, best_revs):
+    # rr_alloc, rev_loads_remaining, matrix_alloc = rr(seln_order, pra, covs, loads, best_revs)
+    _, rev_loads_remaining, matrix_alloc = rr(seln_order, pra, covs, loads, best_revs, output_alloc=False)
+    # _usw = usw(rr_alloc, pra)
+    _usw = np.sum(matrix_alloc * pra)
+    # print("USW ", time.time() - start)
+    return _usw, rev_loads_remaining, matrix_alloc
+
+
+def rr(seln_order, pra, covs, loads, best_revs, output_alloc=True):
+    if output_alloc:
+        alloc = {p: list() for p in seln_order}
+    matrix_alloc = np.zeros((pra.shape), dtype=np.bool)
+
+    loads_copy = loads.copy()
+
+    # Assume all covs are the same
+    if output_alloc:
+        for _ in range(covs[seln_order[0]]):
+            for a in seln_order:
+                for r in best_revs[:, a]:
+                    if loads_copy[r] > 0 and r not in alloc[a]:
+                        loads_copy[r] -= 1
+                        alloc[a].append(r)
+                        matrix_alloc[r, a] = 1
+                        break
+        return alloc, loads_copy, matrix_alloc
+        # best_revs = np.argmax(pra[:, seln_order] * (matrix_alloc[:, seln_order] == 0) * \
+        # (loads_copy > 0).reshape((-1,1)), axis=0)
+
+        # for idx, a in enumerate(seln_order):
+        #     # Allocate a reviewer which still has slots and hasn't already been allocated to this paper
+        #     if loads_copy[best_revs[idx]] > 0:
+        #         loads_copy[best_revs[idx]] -= 1
+        #         alloc[a].append(best_revs[idx])
+        #         matrix_alloc[best_revs[idx], a] = 1
+        #     else:
+        #         # Need to recompute, since this reviewer has no slots left
+        #         best_rev = np.argmax(pra[:, a] * (loads_copy > 0) * (matrix_alloc[:, a] == 0))
+        #         loads_copy[best_rev] -= 1
+        #         alloc[a].append(best_rev)
+        #         matrix_alloc[best_rev, a] = 1
+
+        # This was the original way I was doing round-robin. I think the way above is at least a little bit faster.
+        # for a in seln_order:
+        #     # Allocate a reviewer which still has slots and hasn't already been allocated to this paper
+        #     best_rev = np.argmax(pra[:, a] * (loads_copy > 0) * (matrix_alloc[:, a] == 0))
+        #     loads_copy[best_rev] -= 1
+        #     alloc[a].append(best_rev)
+        #     matrix_alloc[best_rev, a] = 1
+    else:
+        for _ in range(covs[seln_order[0]]):
+            for a in seln_order:
+                for r in best_revs[:, a]:
+                    if loads_copy[r] > 0 and matrix_alloc[r, a] == 0:
+                        loads_copy[r] -= 1
+                        matrix_alloc[r, a] = 1
+                        break
+        # return is wayyy below
+
+        # THE CODE FROM HERE TO "END" WAS AN ATTEMPT TO VECTORIZE RR WHICH DID NOT SPEED IT UP
+        # TODO: This code also doesn't consider that we are operating over a subset of the papers
+        # TODO: I think we just need to fix that by setting all non-considered papers' reviewers in which_revs
+        # TODO: to -1. Of course, it also isn't considering the selection order at all. But if we can
+        # TODO: modify this code so that it knows which agents we're concerned about and in what order,
+        # TODO: then 1) it might actually speed up RR and 2) it might be possible to feed in a bunch of
+        # TODO: those order arrays and run RR for hundreds or thousands of orders in parallel.
+        # TODO: Maybe we can actually run the whole thing on the GPU and use torch in that case?
+        # TODO: So there won't be any loss computation, just good old-fashioned cuda BLAS operations.
+        # This tells each paper which idx of best_rev they will take from next
+        # print("starting RR")
+        # n = covs.shape[0]
+        # which_choice = np.zeros(n, dtype=np.int)
+        # for _ in range(covs[seln_order[0]]):
+        #     # which_revs = best_revs[which_choice, :][0, :]
+        #     which_revs = best_revs[which_choice, range(n)]
+        #
+        #     # For each reviewer which exceeded their load, find the agents which need to change
+        #     values, counts = np.unique(which_revs, return_counts=True)
+        #     # print(which_revs)
+        #     # print(counts > loads_copy[values])
+        #     while np.any(counts > loads_copy[values]):
+        #         # These are the reviewers whose loads were exceeded this round, and we take the first.
+        #         # I think this code does all the reviewers with violating loads at once.
+        #         # ind = np.where(counts > loads_copy[values])[0][0]
+        #         # v = values[ind]
+        #         inds = np.where(counts > loads_copy[values])[0]
+        #         violated_reviewers = values[inds]
+        #         which_agents_to_change = loads_copy[violated_reviewers]
+        #
+        #         # This will give us all agents which have a violated reviewer, but how do we suppress
+        #         # the incrementation of the first few agents (who can keep that reviewer).
+        #         num_violated_revs = violated_reviewers.shape[0]
+        #         violations = np.where(np.tile(which_revs, (num_violated_revs, 1))
+        #                               == violated_reviewers.reshape((-1, 1)))
+        #
+        #         agents_to_update = np.zeros((num_violated_revs, n), dtype=np.int)
+        #         agents_to_update[violations[0], violations[1]] = 1
+        #
+        #         # we need to set the first which_agents_to_change nonzero elements of each row to 0
+        #         # agents_to_update[range(num_violated_revs), :which_agents_to_change] = 0
+        #         cs = np.cumsum(agents_to_update, axis=1)
+        #         mask = (cs > which_agents_to_change.reshape((-1, 1)))
+        #         agents_to_update *= mask
+        #         # for i in which_agents_to_change:
+        #
+        #         agents_to_update = np.sum(agents_to_update, axis=0)
+        #         which_choice[np.where(agents_to_update)] += 1
+        #
+        #         which_revs = best_revs[which_choice, range(n)]
+        #         values, counts = np.unique(which_revs, return_counts=True)
+        #
+        #         # for idx in range(violated_reviewers.shape[0]):
+        #         #     violating_agents = np.where(which_revs == \
+        #         violated_reviewers[idx])[0][which_agents_to_change[idx]:]
+        #         #     which_choice[violating_agents] += 1
+        #         # # which_revs = best_revs[which_choice, :][0, :]
+        #         # which_revs = best_revs[which_choice, range(n)]
+        #
+        #         # violating_agents = np.where(which_revs in vals)
+        #
+        #         # violating_agents = np.where(which_revs == v)[0][loads_copy[v]:]
+        #         # which_choice[violating_agents] += 1
+        #         # which_revs = best_revs[which_choice, :]
+        #
+        #     matrix_alloc[which_revs, :] = 1
+        #     values, counts = np.unique(which_revs, return_counts=True)
+        #     loads_copy[values] -= counts
+        #
+        #     which_choice += 1
+        # END
+
+        return None, loads_copy, matrix_alloc
+
+
+"""We are trying to add r to a's bundle, but need to be sure we meet the criteria to prove the allocation is EF1. 
+For all papers, we need to make sure the inductive step holds that a paper p always prefers its own assignment
+to that of another paper (a, here) ~other than the 0th round with respect to p~. So we check, for any papers 
+p earlier than a, do they prefer their own entire bundle to a's entire bundle? And for papers later than a, do they
+prefer their own bundle to a's bundle other than the 1st reviewer? 
+
+The first round is always safe.
+
+Finally, we only need to check papers who have previously chosen this reviewer we are about to choose, because if 
+they haven't chosen it they must have valued their own choices more. 
+"""
+
+
+def is_safe_choice(r, a, seln_order_idx_map, matrix_alloc, papers_who_tried_revs, pra, round_num, first_reviewer):
+    if round_num == 0:
+        return True
+    a_idx = seln_order_idx_map[a]
+
+    # Construct the allocations we'll use for comparison
+    a_alloc_orig = matrix_alloc[:, a]
+    a_alloc_proposed = a_alloc_orig.copy()
+    a_alloc_proposed[r] = 1
+    a_alloc_proposed_reduced = a_alloc_proposed.copy()
+    a_alloc_proposed_reduced[first_reviewer[a]] = 0
+
+    for p in papers_who_tried_revs[r]:
+        if p != a:
+            # Check that they will not envy a if we add r to a.
+            _a = a_alloc_proposed if (seln_order_idx_map[p] < a_idx) else a_alloc_proposed_reduced
+            v_p_for_a_proposed = np.sum(_a * pra[:, p])
+
+            v_p_for_p = np.sum(matrix_alloc[:, p] * pra[:, p])
+            if v_p_for_a_proposed > v_p_for_p and not np.isclose(v_p_for_a_proposed, v_p_for_p):
+                return False
+    return True
+
+
+def safe_rr(seln_order, pra, covs, loads, best_revs):
+    alloc = {p: list() for p in seln_order}
+    matrix_alloc = np.zeros((pra.shape), dtype=np.bool)
+
+    loads_copy = loads.copy()
+
+    # When selecting a reviewer, you need to check for EF1 (inductive step) with all other papers who either
+    # previously chose that reviewer or were themselves forced to pass over that reviewer... aka anyone
+    # that ever TRIED to pick that reviewer. A paper that never
+    # tried to pick that reviewer will have picked someone they liked better anyway.
+    papers_who_tried_revs = defaultdict(list)
+    first_reviewer = {}
+
+    seln_order_idx_map = {p: idx for idx, p in enumerate(seln_order)}
+
+    # Assume all covs are the same
+    for round_num in range(covs[seln_order[0]]):
+        for a in seln_order:
+            for r in best_revs[:, a]:
+                if loads_copy[r] > 0 and r not in alloc[a]:
+                    papers_who_tried_revs[r].append(a)
+                    if is_safe_choice(r, a, seln_order_idx_map, matrix_alloc,
+                                      papers_who_tried_revs, pra, round_num, first_reviewer):
+                        loads_copy[r] -= 1
+                        alloc[a].append(r)
+                        matrix_alloc[r, a] = 1
+                        if round_num == 0:
+                            first_reviewer[a] = r
+                        break
+    return alloc, loads_copy, matrix_alloc
 
 
 def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):

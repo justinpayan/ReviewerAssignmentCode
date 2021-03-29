@@ -5,33 +5,15 @@ import time
 from utils import *
 
 
-def schedule_by_random(scores, loads, covs):
-    # Convert scores to just duplicate the reviewers
-    c = covs[0]
-
-    matrix_alloc = np.zeros((scores.shape), dtype=np.bool)
+def schedule_by_random(scores, loads, covs, ordering=None):
     m, n = scores.shape
-
     best_revs = np.argsort(-1 * scores, axis=0)
+    if ordering is None:
+        ordering = sorted(range(n), key=lambda x: random.random())
 
-    remaining = np.copy(loads)
-
-    ordering = sorted(range(n), key=lambda x: random.random())
-
-    # print("ordering: ", ordering)
-
-    for _ in range(c):
-        for a in ordering:
-            for r in best_revs[:, a]:
-                if remaining[r] and matrix_alloc[r, a] < 1:
-                    remaining[r] -= 1
-                    matrix_alloc[r, a] = 1
-                    break
-
-    # print(matrix_alloc)
-    alloc = {a: list(np.where(matrix_alloc[:, a])[0]) for a in range(n)}
-
-    return alloc
+    a, _, _ = safe_rr(ordering, scores, covs, loads, best_revs)
+    # a, _, _ = rr(ordering, scores, covs, loads, best_revs)
+    return a
 
 
 def run_algo(dataset, base_dir):
@@ -64,7 +46,6 @@ if __name__ == "__main__":
     # all_stats = [times, usws, nsws, ef1s, efxs, ps_mins, ps_maxs, ps_means, ps_stds]
     all_stats = [usws, nsws, ps_mins, ef1s]
 
-
     for _ in range(10):
         start = time.time()
         alloc = run_algo(dataset, base_dir)
@@ -90,12 +71,14 @@ if __name__ == "__main__":
         usws.append(usw(alloc, scores))
         nsws.append(nsw(alloc, scores))
         ef1s.append(ef1_violations(alloc, scores))
+        print(ef1s[-1])
         efxs.append(efx_violations(alloc, scores))
         pmi, pma, pme, pst = paper_score_stats(alloc, scores)
         ps_mins.append(pmi)
         ps_maxs.append(pma)
         ps_means.append(pme)
         ps_stds.append(pst)
+    # ENDFOR
 
     means = [np.mean(stat) for stat in all_stats]
     stds = [np.std(stat) for stat in all_stats]
