@@ -304,7 +304,7 @@ class LocalSearcher(object):
         best_option = sorted(rr_orders, key=lambda x: x[1])[-1][0]
         # Convert to list, use the other file's functions to get alloc
         partial_order = LocalSearcher.tuples_to_list(best_option)
-        partial_alloc, _, _ = safe_rr(partial_order, self.scores, self.covs, self.loads, self.best_revs, output_alloc=True)
+        partial_alloc, _, _ = safe_rr(partial_order, self.scores, self.covs, self.loads, self.best_revs)
 
         # TODO: run Lipton to complete the allocation. Can we guarantee this will always work?
 
