@@ -8,7 +8,8 @@ from greedy_rr import safe_rr_usw, safe_rr, _greedy_rr_ordering
 from utils import *
 
 
-def compute_marginal_gain(pair, tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm):
+def compute_marginal_gain(input_args):
+    pair, tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm = input_args
     usw = estimate_expected_safe_rr_usw(tuple_set | {pair}, scores, covs, loads, best_revs,
                                         n_iters=n_iters, normalizer=norm)
     mg = usw - current_usw
@@ -39,7 +40,7 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
                 # We can skip if the upper bound on the marginal gain (which is basically an ENFORCED upper bound)
                 # is not enough.
                 if marginal_gains[pair] > best_marginal_gain:
-                    mg = compute_marginal_gain(pair, tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm)
+                    mg = compute_marginal_gain((pair, tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm))
                     mg = min([mg, marginal_gains[pair]])
                     marginal_gains[pair] = mg
 
@@ -59,7 +60,9 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
                 for argument in [tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm]:
                     list_of_copied_args.append(len(pairs_to_try) * [argument])
 
-                mgs = pool.map(compute_marginal_gain, list_of_copied_args)
+                # print(list(zip(*list_of_copied_args))[0])
+
+                mgs = pool.map(compute_marginal_gain, zip(*list_of_copied_args))
 
                 for p, mg in zip(pairs_to_try, mgs):
                     mg = min([mg, marginal_gains[p]])
