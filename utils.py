@@ -1,9 +1,12 @@
 import argparse
+import math
 import numpy as np
 import os
 import pickle
+import random
 
 from collections import Counter, defaultdict
+from copy import deepcopy
 from itertools import product
 from sklearn import metrics
 
@@ -14,7 +17,7 @@ def usw(alloc, pra):
         for r in alloc[p]:
             usw += pra[r, p]
     n = pra.shape[1]
-    return usw/n
+    return usw / n
 
 
 def nsw(alloc, pra):
@@ -24,7 +27,7 @@ def nsw(alloc, pra):
         for r in alloc[p]:
             paper_score += pra[r, p]
         if paper_score:
-            nsw *= paper_score**(1/len(alloc))
+            nsw *= paper_score ** (1 / len(alloc))
     return nsw
 
 
@@ -146,10 +149,10 @@ def reviewer_load_distrib(alloc, m):
 
     rev_loads = []
     for ct, num_revs in rev_load_dist.items():
-        rev_loads.extend([ct]*num_revs)
+        rev_loads.extend([ct] * num_revs)
 
     revs_no_load = m - len(rev_loads)
-    rev_loads.extend([0]*revs_no_load)
+    rev_loads.extend([0] * revs_no_load)
     rev_load_dist[0] = revs_no_load
 
     return "%s, min: %d, max: %d, std: %.2f" % (str(rev_load_dist),
@@ -161,15 +164,15 @@ def reviewer_load_distrib(alloc, m):
 # Subtract the mean score of the bottom k from the mean score of the top k for k from 1 to n/2.
 # Compute the AUC.
 def compare_bottom_to_top(alloc, pra, covs):
-    paper_scores = [get_valuation(p, alloc[p], pra)/(np.max(pra)*np.max(covs)) for p in alloc]
+    paper_scores = [get_valuation(p, alloc[p], pra) / (np.max(pra) * np.max(covs)) for p in alloc]
     paper_scores = sorted(paper_scores)
 
     differences = []
-    end_x = int(len(alloc)/2)
-    x = [i/(end_x-1) for i in range(end_x)]
+    end_x = int(len(alloc) / 2)
+    x = [i / (end_x - 1) for i in range(end_x)]
 
     for k in range(end_x):
-        differences.append(np.mean(paper_scores[-k-1:]) - np.mean(paper_scores[:k+1]))
+        differences.append(np.mean(paper_scores[-k - 1:]) - np.mean(paper_scores[:k + 1]))
 
     # print(x)
     # print(differences)
@@ -204,6 +207,35 @@ def save_alloc(alloc, alloc_file):
 def load_alloc(alloc_file):
     with open(alloc_file, 'rb') as f:
         return pickle.load(f)
+
+
+""" Sample a bunch of ways to complete the tuple set, create the total ordering for each one and compute usw
+    from running the safe_rr_usw function."""
+
+
+def estimate_expected_safe_rr_usw(tuple_set, pra, covs, loads, best_revs, n_iters=100, normalizer=1.0):
+    m, n = pra.shape
+
+    agents = [x[0] for x in tuple_set]
+    positions = [x[1] for x in tuple_set]
+
+    remaining_positions = set(range(n)) - set(positions)
+
+    usws = []
+    for _ in range(n_iters):
+        S = deepcopy(tuple_set)
+        remaining_agents = sorted(list(set(range(n)) - set(agents)), key=lambda x: random.random())
+
+        for p in remaining_positions:
+            S.add((remaining_agents.pop(), p))
+
+        seln_order = [x[0] for x in sorted(S, key=lambda x: x[1])]
+        usws.append(safe_rr_usw(seln_order, pra, covs, loads, best_revs)[0])
+
+    x = (np.mean(usws)/normalizer) * len(tuple_set)
+    # return x * (1-(1-(len(tuple_set)/n))**n)
+    # return x * len(tuple_set)**30
+    return x
 
 
 # Return the usw of running round robin on the agents in the list "seln_order"
@@ -451,7 +483,7 @@ if __name__ == "__main__":
     alloc_file = args.alloc_file
     base_dir = args.base_dir
 
-    alloc = load_alloc(alloc_file)
+    alloc = load_alloc(alloc_file)[0]
 
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
