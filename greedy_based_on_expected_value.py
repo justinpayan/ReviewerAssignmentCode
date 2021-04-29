@@ -54,7 +54,7 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
                           flush=True)
 
                 pairs_to_try = [(a, p) for p in available_positions if marginal_gains[(a, p)] > best_marginal_gain]
-                print("len(pairs_to_try): {}".format(len(pairs_to_try)))
+                print("len(pairs_to_try): {}".format(len(pairs_to_try)), flush=True)
 
                 list_of_copied_args = [pairs_to_try]
                 for argument in [tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm]:
