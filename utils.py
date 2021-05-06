@@ -196,6 +196,10 @@ def parse_args():
     parser.add_argument("--local_search_init_order", type=str, default=None)
     parser.add_argument("--num_processes", type=int, default=20)
     parser.add_argument("--local_search_partial_returned_order", type=str)
+    parser.add_argument("--mg_file", type=str, default=None)
+    parser.add_argument("--num_distrib_jobs", type=int, default=1000)
+    parser.add_argument("--job_num", type=int, default=0)
+    parser.add_argument("--init_run", type=bool, default=False)
     return parser.parse_args()
 
 
