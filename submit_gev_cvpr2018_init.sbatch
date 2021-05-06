@@ -20,5 +20,5 @@ for JOB_NUM in $(seq 0 $END); do
            --partition=defq \
            --nodes=1 \
            --ntasks=40 \
-            ./run_gev_init.sh $DATASET $BASE_DIR $NUM_PROCESSES $JOB_NUM $NUM_DISTRIBUTED_JOB
+            ./run_gev_init.sh $DATASET $BASE_DIR $NUM_PROCESSES $JOB_NUM $NUM_DISTRIB_JOBS
 done
