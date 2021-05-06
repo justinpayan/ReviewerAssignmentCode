@@ -199,7 +199,9 @@ def parse_args():
     parser.add_argument("--mg_file", type=str, default=None)
     parser.add_argument("--num_distrib_jobs", type=int, default=1000)
     parser.add_argument("--job_num", type=int, default=0)
-    parser.add_argument("--init_run", type=bool, default=False)
+    parser.add_argument('--init_run', dest='init_run', action='store_true')
+    parser.add_argument('--no_init_run', dest='init_run', action='store_false')
+    parser.set_defaults(init_run=False)
     return parser.parse_args()
 
 
