@@ -10,7 +10,8 @@ OUTBASE=/mnt/nfs/scratch1/jpayan
 BASE_DIR=${OUTBASE}/fair-matching/data
 OUTBASE=${OUTBASE}/ReviewerAssignmentCode
 
-for JOB_NUM in {0..$NUM_DISTRIB_JOBS}; do
+END=$(($NUM_DISTRIB_JOBS - 1))
+for JOB_NUM in $(seq 0 $END); do
     sbatch -J cvpr_gev_init_${JOB_NUM} \
            -e cvpr_gev_init_${JOB_NUM}.err \
            -o cvpr_gev_init_${JOB_NUM}.out \
