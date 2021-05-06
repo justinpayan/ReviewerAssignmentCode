@@ -15,8 +15,8 @@ for JOB_NUM in $(seq 0 $END); do
     sbatch -J cvpr_gev_init_${JOB_NUM} \
            -e cvpr_gev_init_${JOB_NUM}.err \
            -o cvpr_gev_init_${JOB_NUM}.out \
-           --mem=40G \
-           --time=12:00:00 \
+           --mem=5G \
+           --time=6:00:00 \
            --partition=defq \
            --nodes=1 \
            --ntasks=40 \
