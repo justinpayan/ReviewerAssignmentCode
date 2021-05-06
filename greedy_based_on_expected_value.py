@@ -110,10 +110,11 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
 
 
 def try_to_merge(mg_file, num_distrib_jobs, n):
-    print("Merging all %d marginal gain files" % num_distrib_jobs)
+    print("Trying to merge all %d marginal gain files" % num_distrib_jobs)
 
     for i in range(num_distrib_jobs):
         if not Path("{}_{}_{}".format(mg_file, i, num_distrib_jobs)).is_file():
+            print("Failed to merge: File %d of %d not complete" % (i, num_distrib_jobs), flush=True)
             return
 
     marginal_gains = {p: np.inf for p in product(set(range(n)), set(range(n)))}
@@ -151,7 +152,7 @@ def init_mg_files(dataset, base_dir, n_iters, norm, num_processes, mg_file, num_
 
     pairs_to_try = [(a, p) for (a, p) in product(available_agents, available_positions)]
 
-    print("len(pairs_to_try): {}".format(len(pairs_to_try)))
+    print("len(pairs_to_try): {}".format(len(pairs_to_try)), flush=True)
 
     list_of_copied_args = [pairs_to_try]
     for argument in [current_usw, scores, covs, loads, best_revs, n_iters, norm]:
