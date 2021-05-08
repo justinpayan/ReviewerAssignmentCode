@@ -4,7 +4,7 @@
 #SBATCH --output=cvpr_gev.out
 #SBATCH --error=cvpr_gev.err
 #SBATCH --nodes=1
-#SBATCH --ntasks=500
+#SBATCH --ntasks=40
 #SBATCH --mem=40G
 #SBATCH --time=06-00:00:00
 #SBATCH --partition=longq
