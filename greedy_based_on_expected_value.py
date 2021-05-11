@@ -99,7 +99,7 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
 
                 if len(segment) == seg_size or (p_idx == len(pairs_to_try) - 1 and segment):
                     print("Processing segment {}. {} of {} total pairs checked"
-                          .format(seg_idx, p_idx, len(pairs_to_try)))
+                          .format(seg_idx, p_idx, len(pairs_to_try)), flush=True)
 
                     list_of_copied_args = [segment]
                     for argument in [tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm]:
