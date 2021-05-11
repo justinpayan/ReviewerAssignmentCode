@@ -42,6 +42,8 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
     marginal_gains = {p: np.inf for p in product(available_agents, available_positions)}
     current_usw = 0
 
+    worst_drop = 0
+
     if initial_marginal_gains:
         marginal_gains = initial_marginal_gains
 
@@ -64,13 +66,14 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
         pair_to_add = None
         best_marginal_gain = -1
 
-        if len(available_agents)*len(available_positions) < 1000:
+        if len(available_agents)*len(available_positions) < 10:
             for pair in product(available_agents, available_positions):
                 # We can skip if the upper bound on the marginal gain (which is basically an ENFORCED upper bound)
                 # is not enough.
                 if marginal_gains[pair] > best_marginal_gain:
                     mg = compute_marginal_gain((pair, tuple_set, current_usw,
                                                 scores, covs, loads, best_revs, n_iters, norm))
+                    worst_drop = max(worst_drop, mg - min([mg, marginal_gains[pair]]))
                     mg = min([mg, marginal_gains[pair]])
                     marginal_gains[pair] = mg
 
@@ -83,28 +86,46 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
 
             print("len(pairs_to_try): {}".format(len(pairs_to_try)))
             print("len(tuple_set): {}".format(len(tuple_set)))
+            print("worst_drop: {}".format(worst_drop))
             print("current_usw: {}".format(current_usw), flush=True)
 
-            list_of_copied_args = [pairs_to_try]
-            for argument in [tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm]:
-                list_of_copied_args.append(len(pairs_to_try) * [argument])
+            seg_size = 1000
+            segment = []
+            seg_idx = 0
 
-            # print(list(zip(*list_of_copied_args))[0])
+            for p_idx, (a, p) in enumerate(pairs_to_try):
+                if marginal_gains[(a, p)] > best_marginal_gain:
+                    segment.append((a, p))
 
-            mgs = pool.map(compute_marginal_gain, zip(*list_of_copied_args))
+                if len(segment) == seg_size or (p_idx == len(pairs_to_try) - 1 and segment):
+                    print("Processing segment {}. {} of {} total pairs checked"
+                          .format(seg_idx, p_idx, len(pairs_to_try)))
 
-            for p, mg in zip(pairs_to_try, mgs):
-                mg = min([mg, marginal_gains[p]])
-                marginal_gains[p] = mg
+                    list_of_copied_args = [segment]
+                    for argument in [tuple_set, current_usw, scores, covs, loads, best_revs, n_iters, norm]:
+                        list_of_copied_args.append(len(segment) * [argument])
 
-                if mg > best_marginal_gain:
-                    best_marginal_gain = mg
-                    pair_to_add = p
+                    # print(list(zip(*list_of_copied_args))[0])
+
+                    mgs = pool.map(compute_marginal_gain, zip(*list_of_copied_args))
+
+                    for p, mg in zip(segment, mgs):
+                        worst_drop = max(worst_drop, mg - min([mg, marginal_gains[p]]))
+                        mg = min([mg, marginal_gains[p]])
+                        marginal_gains[p] = mg
+
+                        if mg > best_marginal_gain:
+                            best_marginal_gain = mg
+                            pair_to_add = p
+
+                    seg_idx += 1
+                    segment = []
 
         tuple_set.add(pair_to_add)
         current_usw += marginal_gains[pair_to_add]
         available_agents.remove(pair_to_add[0])
         available_positions.remove(pair_to_add[1])
+        print("Worst drop at end: {}".format(worst_drop))
 
     return tuple_set
 
