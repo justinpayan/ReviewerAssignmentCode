@@ -53,7 +53,7 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
         for pair in product(available_agents, available_positions):
             # We can skip if the upper bound on the marginal gain (which is basically an ENFORCED upper bound)
             # is not enough.
-            if marginal_gains[pair] > best_marginal_gain:
+            if best_marginal_gain < marginal_gains[pair] < np.inf:
                 best_marginal_gain = marginal_gains[pair]
                 pair_to_add = pair
 
