@@ -84,6 +84,10 @@ def greedy_based_on_ev(scores, loads, covs, best_revs, n_iters, norm, num_proces
             pairs_to_try = [(a, p) for (a, p) in product(available_agents, available_positions)
                             if marginal_gains[(a, p)] > best_marginal_gain]
 
+            if len(pairs_to_try) > 10000:
+                pairs_to_try = sorted(pairs_to_try, key=lambda x: marginal_gains[x], reverse=True)
+                pairs_to_try = pairs_to_try[:10000]
+
             print("len(pairs_to_try): {}".format(len(pairs_to_try)))
             print("len(tuple_set): {}".format(len(tuple_set)))
             print("worst_drop: {}".format(worst_drop))
