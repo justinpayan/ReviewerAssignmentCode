@@ -10,93 +10,127 @@ from copy import deepcopy
 from utils import *
 
 
-# Return the usw of running round robin on the agents in the list "seln_order"
-def rr_usw(seln_order, pra, covs, loads, best_revs):
-    # rr_alloc, rev_loads_remaining, matrix_alloc = rr(seln_order, pra, covs, loads, best_revs)
-    _, rev_loads_remaining, matrix_alloc = rr(seln_order, pra, covs, loads, best_revs, output_alloc=False)
-    # _usw = usw(rr_alloc, pra)
-    _usw = np.sum(matrix_alloc * pra)
-    # print("USW ", time.time() - start)
-    return _usw, rev_loads_remaining, matrix_alloc
-
-
-def rr(seln_order, pra, covs, loads, best_revs, output_alloc=True):
-    if output_alloc:
-        alloc = {p: list() for p in seln_order}
-    matrix_alloc = np.zeros((pra.shape), dtype=np.bool)
-
-    loads_copy = loads.copy()
-
-    # Assume all covs are the same
-    if output_alloc:
-        for _ in range(covs[seln_order[0]]):
-            for a in seln_order:
-                for r in best_revs[:, a]:
-                    if loads_copy[r] > 0 and r not in alloc[a]:
-                        loads_copy[r] -= 1
-                        alloc[a].append(r)
-                        matrix_alloc[r, a] = 1
-                        break
-        return alloc, loads_copy, matrix_alloc
-    else:
-        for _ in range(covs[seln_order[0]]):
-            for a in seln_order:
-                for r in best_revs[:, a]:
-                    if loads_copy[r] > 0 and matrix_alloc[r, a] == 0:
-                        loads_copy[r] -= 1
-                        matrix_alloc[r, a] = 1
-                        break
-
-        return None, loads_copy, matrix_alloc
-
-
-def run_submod_exp(pra, covs, loads, best_revs):
+def run_probabilistic_max_exp(pra, covs, loads, best_revs, norm=None):
     m, n = pra.shape
-    diffs = []
+
+    num_comp = 5
+    min_size = n-10
+
+    wins = []
+    correct = []
+    set_sizes = []
+    num_deletes = []
 
     for i in range(10000):
-        if i % 100 == 0 and i > 0:
+        if i % 1 == 0 and i > 0:
             print(i)
-            d = np.array(diffs)
-            print(np.sum(d > 1e-8))
-            print(np.mean(d > 1e-8) * 100)
-            print(np.mean(d[d > 1e-8]))
-            print(np.std(d[d > 1e-8]))
+            print(wins)
+            print(correct)
+            print(set_sizes)
+            print(num_deletes)
+            wc = list(zip(wins, correct))
+            for i in range(num_comp, num_comp-(num_comp+1)//2, -1):
+                # print(i)
+                # print(wc)
+                # print([1 - x[1] for x in wc if x[0] >= i])
+                num_incorrect = sum([1-x[1] for x in wc if x[0] >= i])
+                print("Num incorrect when wins >= {}: {}".format(i, num_incorrect))
+            # print("num incorrect: ", len(correct) - sum(correct))
             print()
-        # Determine a big set of agents Y, and then sample from it to get the littler set X.
-        # Select a single element e.
-        # Randomly order Y + e, and assign each element a number based on the ordering.
-        # Now use those numbers to order Y + e, Y, X + e, and X.
-        # Compute rr_usw for all of these.
 
-        agents_Ye = np.random.randint(0, 2, (n))
-        e = np.random.choice(np.where(agents_Ye)[0])
-        agents_Y = agents_Ye.copy()
-        agents_Y[e] = 0
-        agents_Xe = np.random.randint(0, 2, (n)) * agents_Y
-        agents_Xe[e] = 1
-        agents_X = agents_Xe.copy()
-        agents_X[e] = 0
+        num_agents_X = np.random.randint(min_size, n-1)
+        # num_agents_X_e1_e2 = i % (n-3) + 3
+        agents_X = set(random.sample(range(n), num_agents_X))
 
-        agents_Ye = np.where(agents_Ye)[0].tolist()
-        agents_Y = np.where(agents_Y)[0].tolist()
-        agents_Xe = np.where(agents_Xe)[0].tolist()
-        agents_X = np.where(agents_X)[0].tolist()
+        positions_X = sorted(range(n), key=lambda x: random.random())[:num_agents_X]
+        position_map = dict(zip(sorted(agents_X), positions_X))
 
-        total_order = sorted(agents_Ye, key=lambda x: random.random())
-        order_map = {i: idx for idx, i in enumerate(total_order)}
+        X = {(a, position_map[a]) for a in agents_X}
 
-        agents_Ye = sorted(agents_Ye, key=lambda x: order_map[x])
-        agents_Y = sorted(agents_Y, key=lambda x: order_map[x])
-        agents_Xe = sorted(agents_Xe, key=lambda x: order_map[x])
-        agents_X = sorted(agents_X, key=lambda x: order_map[x])
+        # e = random.sample(set(product(range(n), range(n))) - X, 1)[0]
+        open_pos = set(range(n)) - set(positions_X)
+        pool = set(product(agents_X, open_pos))
+        open_ag = set(range(n)) - agents_X
+        pool |= set(product(open_ag, positions_X))
+        e = random.sample(pool, 1)[0]
 
-        diff_y = rr_usw(agents_Ye, pra, covs, loads, best_revs)[0] - rr_usw(agents_Y, pra, covs, loads, best_revs)[0]
-        diff_x = rr_usw(agents_Xe, pra, covs, loads, best_revs)[0] - rr_usw(agents_X, pra, covs, loads, best_revs)[0]
+        del_1 = set()
+        del_2 = set()
 
-        diffs.append(diff_y - diff_x)
+        if e[0] in agents_X or e[1] in positions_X:
+            for f in X:
+                if f[0] == e[0]:
+                    del_1.add(f)
+                elif f[1] == e[1]:
+                    del_2.add(f)
+        X_prime = X - (del_1 | del_2)
+        X_prime.add(e)
 
-    return np.array(diffs)
+        # Run num_comp completions of both, record number of times X beats X_prime
+        winners = []
+        for _ in range(num_comp):
+            val_X = estimate_expected_safe_rr_usw(X, pra, covs, loads, best_revs, n_iters=1, normalizer=norm)
+            val_X_prime = estimate_expected_safe_rr_usw(X_prime, pra, covs, loads, best_revs, n_iters=1, normalizer=norm)
+            winners.append(val_X > val_X_prime)
+        X_wins = int(np.sum(np.array(winners)))
+        winner = X_wins >= num_comp/2  # X won more that X_prime
+        num_wins = max(X_wins, num_comp - X_wins)
+
+        # compute the true max of both
+        max_X = max_safe_rr_usw(X, pra, covs, loads, best_revs, normalizer=norm)
+        max_X_prime = max_safe_rr_usw(X_prime, pra, covs, loads, best_revs, normalizer=norm)
+        true_winner = max_X >= max_X_prime
+
+        wins.append(num_wins)
+        correct.append(winner == true_winner or np.isclose(max_X, max_X_prime))
+        set_sizes.append((len(X), len(X_prime)))
+        num_deletes.append(len(del_1) + len(del_2))
+
+
+def run_submod_exp(pra, covs, loads, best_revs, norm=None):
+    m, n = pra.shape
+
+    violator_sizes = []
+    violation_amounts = []
+    gamma_values = []
+
+    for i in range(10000):
+        if i % 10 == 0 and i > 0:
+            print(i)
+            print(len(violator_sizes))
+            print(violator_sizes)
+            print(violation_amounts)
+            print(sorted(gamma_values))
+
+        num_agents_X_e1_e2 = np.random.randint(3, n)
+        # num_agents_X_e1_e2 = i % (n-3) + 3
+        agents_X_e1_e2 = set(random.sample(range(n), num_agents_X_e1_e2))
+        e1 = random.sample(agents_X_e1_e2, 1)[0]
+        e2 = random.sample(agents_X_e1_e2 - {e1}, 1)[0]
+        agents_X = agents_X_e1_e2 - {e1, e2}
+
+        positions_X_e1_e2 = sorted(range(n), key=lambda x: random.random())[:num_agents_X_e1_e2]
+        position_map = dict(zip(sorted(agents_X_e1_e2), positions_X_e1_e2))
+
+        X = {(a, position_map[a]) for a in agents_X}
+        X_e1 = {(a, position_map[a]) for a in agents_X | {e1}}
+        X_e2 = {(a, position_map[a]) for a in agents_X | {e2}}
+        X_e1_e2 = {(a, position_map[a]) for a in agents_X | {e1, e2}}
+
+        vals = []
+
+        for inp in [X, X_e1, X_e2, X_e1_e2]:
+            seln_order = [x[0] for x in sorted(inp, key=lambda x: x[1])]
+            vals.append(safe_rr_usw(seln_order, pra, covs, loads, best_revs)[0])
+            # vals.append(estimate_expected_safe_rr_usw(inp, pra, covs, loads, best_revs, n_iters=10, normalizer=norm))
+
+        diff_lhs = vals[2] - vals[0]
+        diff_rhs = vals[3] - vals[1]
+
+        if diff_lhs < diff_rhs and not np.isclose(diff_lhs, diff_rhs):
+            violator_sizes.append(num_agents_X_e1_e2)
+            violation_amounts.append(diff_rhs - diff_lhs)
+            gamma_values.append(diff_lhs/diff_rhs)
 
 
 if __name__ == "__main__":
@@ -120,12 +154,16 @@ if __name__ == "__main__":
     # greedy_rr(paper_reviewer_affinities, covs, loads, args.alloc_file)
     best_revs = np.argsort(-1 * paper_reviewer_affinities, axis=0)
 
-    diffs = run_submod_exp(paper_reviewer_affinities, covs, loads, best_revs)
-    print(diffs)
-    print(np.sum(diffs > 1e-8))
-    print(np.mean(diffs > 1e-8)*100)
-    print(np.mean(diffs[diffs > 1e-8]))
-    print(np.std(diffs[diffs > 1e-8]))
+    norm_map = {"midl": 201.88, "cvpr": 5443.64, "cvpr2018": 112552.11}
+    norm = norm_map[dataset]
+
+    # run_submod_exp(paper_reviewer_affinities, covs, loads, best_revs, norm)
+    run_probabilistic_max_exp(paper_reviewer_affinities, covs, loads, best_revs, norm)
+    # print(diffs)
+    # print(np.sum(diffs > 1e-8))
+    # print(np.mean(diffs > 1e-8)*100)
+    # print(np.mean(diffs[diffs > 1e-8]))
+    # print(np.std(diffs[diffs > 1e-8]))
     # print(np.mean(diffs))
     # print(np.std(diffs))
 

@@ -93,9 +93,6 @@ def fn_rr_usw(order_tuples, val_fns, fn=np.mean, num_samples=None, use_mask=Fals
                             matrix_alloc[a, r] = 1
                             break
             usws.append(np.sum(matrix_alloc * val_fns * mask.reshape(-1, 1)))
-    print(order_tuples)
-    print(usws)
-    print(fn(usws))
 
     return fn(usws)
 
@@ -334,12 +331,12 @@ def best_greedy_completion(S_in, val_fns):
     return best_completion
 
 
-def check_submodularity(val_fns):
+def check_greedy_well_def(val_fns):
     n, m = val_fns.shape
 
     # Loop over subsets of tuples which are valid, and compare against all valid supersets, what happens when
     # you add an element?
-    func = np.mean
+    func = np.min
     # func = lambda x: 1*x
     # def func(S):
     #     return S[0]
@@ -374,8 +371,8 @@ def check_submodularity(val_fns):
             # usw_Y_e = math.log(usw_Y_e, log_base)
             # usw_X_e = math.log(usw_X_e, log_base)
 
-            sub1 = usw_Y_e*(len(Y)+1) - usw_Y*len(Y)
-            sub2 = usw_X_e*(len(X)+1) - usw_X*len(X)
+            sub1 = usw_Y_e - usw_Y
+            sub2 = usw_X_e - usw_X
 
             # if len(X) == 1 and (1, 1) in X and (0, 2) in Y and e == (2,0):
             #     print(X)
@@ -474,6 +471,6 @@ if __name__ == "__main__":
     #         for v3 in permutations(range(1, 4)):
     #             valuations = np.array([list(v1), list(v2), list(v3)])
     #             print(valuations)
-        if not check_submodularity(val_fns=valuations):
+        if not check_greedy_well_def(val_fns=valuations):
             print(s)
             sys.exit(0)

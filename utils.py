@@ -7,8 +7,10 @@ import random
 
 from collections import Counter, defaultdict
 from copy import deepcopy
-from itertools import product
+from itertools import product, permutations
 from sklearn import metrics
+
+from tqdm import tqdm
 
 
 def usw(alloc, pra):
@@ -213,6 +215,34 @@ def save_alloc(alloc, alloc_file):
 def load_alloc(alloc_file):
     with open(alloc_file, 'rb') as f:
         return pickle.load(f)
+
+
+""" Check all ways to complete the tuple set, create the total ordering for each one and compute usw
+    from running the safe_rr_usw function. Return the best usw. DO NOT try to run on small sets."""
+
+
+def max_safe_rr_usw(tuple_set, pra, covs, loads, best_revs, normalizer=1.0):
+    m, n = pra.shape
+
+    agents = [x[0] for x in tuple_set]
+    positions = [x[1] for x in tuple_set]
+
+    remaining_positions = list(set(range(n)) - set(positions))
+
+    usws = []
+
+    remaining_agents = set(range(n)) - set(agents)
+
+    for remaining_agent_order in tqdm(permutations(remaining_agents), total=math.factorial(len(remaining_agents))):
+        S = tuple_set | set(zip(remaining_agent_order, remaining_positions))
+
+        seln_order = [x[0] for x in sorted(S, key=lambda x: x[1])]
+        usws.append(safe_rr_usw(seln_order, pra, covs, loads, best_revs)[0])
+
+    x = (np.max(usws) / normalizer) * len(tuple_set)
+    # return x * (1-(1-(len(tuple_set)/n))**n)
+    # return x * len(tuple_set)**30
+    return x
 
 
 """ Sample a bunch of ways to complete the tuple set, create the total ordering for each one and compute usw
