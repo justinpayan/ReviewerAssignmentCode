@@ -339,7 +339,7 @@ def check_submodularity(val_fns):
 
     # Loop over subsets of tuples which are valid, and compare against all valid supersets, what happens when
     # you add an element?
-    func = np.mean
+    func = np.max
     # func = lambda x: 1*x
     # def func(S):
     #     return S[0]
@@ -374,8 +374,8 @@ def check_submodularity(val_fns):
             # usw_Y_e = math.log(usw_Y_e, log_base)
             # usw_X_e = math.log(usw_X_e, log_base)
 
-            sub1 = usw_Y_e*(len(Y)+1) - usw_Y*len(Y)
-            sub2 = usw_X_e*(len(X)+1) - usw_X*len(X)
+            sub1 = usw_Y_e*np.log((len(Y)+1)) - usw_Y*np.log(len(Y))
+            sub2 = usw_X_e*np.log((len(X)+1)) - usw_X*np.log(len(X))
 
             # if len(X) == 1 and (1, 1) in X and (0, 2) in Y and e == (2,0):
             #     print(X)

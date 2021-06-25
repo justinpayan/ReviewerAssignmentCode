@@ -239,7 +239,8 @@ def max_safe_rr_usw(tuple_set, pra, covs, loads, best_revs, normalizer=1.0):
         seln_order = [x[0] for x in sorted(S, key=lambda x: x[1])]
         usws.append(safe_rr_usw(seln_order, pra, covs, loads, best_revs)[0])
 
-    x = (np.max(usws) / normalizer) * len(tuple_set)
+    # x = (np.max(usws) / normalizer) * np.log(len(tuple_set))
+    x = (np.max(usws)/normalizer) * (len(tuple_set))
     # return x * (1-(1-(len(tuple_set)/n))**n)
     # return x * len(tuple_set)**30
     return x
@@ -268,7 +269,7 @@ def estimate_expected_safe_rr_usw(tuple_set, pra, covs, loads, best_revs, n_iter
         seln_order = [x[0] for x in sorted(S, key=lambda x: x[1])]
         usws.append(safe_rr_usw(seln_order, pra, covs, loads, best_revs)[0])
 
-    x = (np.mean(usws)/normalizer) * len(tuple_set)
+    x = (np.mean(usws)/normalizer) * len(tuple_set)**2
     # return x * (1-(1-(len(tuple_set)/n))**n)
     # return x * len(tuple_set)**30
     return x
@@ -434,7 +435,7 @@ they haven't chosen it they must have valued their own choices more.
 
 
 def is_safe_choice(r, a, seln_order_idx_map, matrix_alloc, papers_who_tried_revs, pra, round_num, first_reviewer):
-    if round_num == 0:
+    if round_num == 0 or not len(papers_who_tried_revs[r]):
         return True
     a_idx = seln_order_idx_map[a]
 
@@ -477,7 +478,6 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
         for a in seln_order:
             for r in best_revs[:, a]:
                 if loads_copy[r] > 0 and r not in alloc[a]:
-                    papers_who_tried_revs[r].append(a)
                     if is_safe_choice(r, a, seln_order_idx_map, matrix_alloc,
                                       papers_who_tried_revs, pra, round_num, first_reviewer):
                         loads_copy[r] -= 1
@@ -485,7 +485,11 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
                         matrix_alloc[r, a] = 1
                         if round_num == 0:
                             first_reviewer[a] = r
+                        papers_who_tried_revs[r].append(a)
                         break
+                    else:
+                        papers_who_tried_revs[r].append(a)
+
     return alloc, loads_copy, matrix_alloc
 
 
