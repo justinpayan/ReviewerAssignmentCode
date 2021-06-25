@@ -5,7 +5,8 @@ import multiprocessing as mp
 from utils import *
 
 
-def compute_usw(ordering, scores, covs, loads, best_revs):
+def compute_usw(args):
+    ordering, scores, covs, loads, best_revs = args
     return safe_rr_usw(ordering, scores, covs, loads, best_revs)[0]
 
 
@@ -33,7 +34,7 @@ def greedy(scores, loads, covs, best_revs):
         next_agent = None
         best_usw = -1
 
-        if len(available_agents) < 1000:
+        if len(available_agents) < 200:
             for a in sorted(available_agents, key=lambda x: random.random()):
                 usw = safe_rr_usw(ordering + [a], scores, covs, loads, best_revs)[0]
                 if usw > best_usw:
