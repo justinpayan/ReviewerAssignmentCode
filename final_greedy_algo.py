@@ -15,7 +15,7 @@ by running the greedy algorithm. This greedy algorithm will always put an agent 
 the ordering, selecting the agent which maximizes the utilitarian welfare of the suborder at each step."""
 
 
-def greedy(scores, loads, covs, best_revs):
+def greedy(scores, loads, covs, best_revs, alloc_file):
     m, n = scores.shape
 
     available_agents = set(range(n))
@@ -59,6 +59,11 @@ def greedy(scores, loads, covs, best_revs):
                 if best_usw - curr_usw == max_mg:
                     break
 
+        if len(ordering) % 100 == 1:
+            print("Saving at len(ordering) %d" % len(ordering))
+            save_alloc(alloc, alloc_file)
+            save_alloc(ordering, alloc_file + "_order")
+
         curr_usw = best_usw
         ordering.append(next_agent)
         available_agents.remove(next_agent)
@@ -75,7 +80,7 @@ def run_algo(dataset, base_dir, alloc_file):
 
     best_revs = np.argsort(-1 * scores, axis=0)
 
-    alloc, ordering = greedy(scores, loads, covs, best_revs)
+    alloc, ordering = greedy(scores, loads, covs, best_revs, alloc_file)
     return alloc, ordering
 
 
