@@ -194,6 +194,7 @@ def parse_args():
     parser.add_argument("--dataset", type=str, default="midl")
     parser.add_argument("--base_dir", type=str, default="/home/justinspayan/Fall_2020/fair-matching/data")
     parser.add_argument("--seed", type=int, default=31415)
+    parser.add_argument("--w_value", type=float, default=0.0)
     parser.add_argument("--alloc_file", type=str)
     parser.add_argument("--local_search_init_order", type=str, default=None)
     parser.add_argument("--num_processes", type=int, default=20)

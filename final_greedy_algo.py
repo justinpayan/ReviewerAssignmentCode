@@ -34,7 +34,7 @@ def greedy(scores, loads, covs, best_revs, alloc_file):
         next_agent = None
         best_usw = -1
 
-        if len(available_agents) < 200:
+        if len(available_agents) < 20:
             for a in sorted(available_agents, key=lambda x: random.random()):
                 usw = safe_rr_usw(ordering + [a], scores, covs, loads, best_revs)[0]
                 if usw > best_usw:
@@ -44,6 +44,8 @@ def greedy(scores, loads, covs, best_revs, alloc_file):
                     break
         else:
             sorted_agents = sorted(available_agents)
+            if len(sorted_agents) > 100:
+                sorted_agents = sorted(random.sample(sorted_agents, 100))
             all_orderings = [ordering + [a] for a in sorted_agents]
             list_of_copied_args = [all_orderings]
             for argument in [scores, covs, loads, best_revs]:
