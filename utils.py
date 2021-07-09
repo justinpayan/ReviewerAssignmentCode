@@ -163,6 +163,13 @@ def reviewer_load_distrib(alloc, m):
                                                 np.std(rev_loads))
 
 
+def get_percentile_mean_std(alloc, scores, perc):
+    paper_scores = [get_valuation(p, alloc[p], scores) for p in alloc]
+    paper_scores = sorted(paper_scores)
+    percentile_scores = paper_scores[:math.floor(perc*len(paper_scores))]
+    return np.mean(percentile_scores), np.std(percentile_scores)
+
+
 # Subtract the mean score of the bottom k from the mean score of the top k for k from 1 to n/2.
 # Compute the AUC.
 def compare_bottom_to_top(alloc, pra, covs):
@@ -500,12 +507,19 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
     _efx = efx_violations(alloc, paper_reviewer_affinities)
     _auc = compare_bottom_to_top(alloc, paper_reviewer_affinities, covs)
+    _mean_bottom_ten, _std_bottom_ten = get_percentile_mean_std(alloc, paper_reviewer_affinities, .10)
+    _mean_bottom_quartile, _std_bottom_quartile = get_percentile_mean_std(alloc, paper_reviewer_affinities, .25)
     ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
 
     # print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d & %0.2f \\\\"
     #       % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx, _auc))
     print("%0.2f & %0.2f & %0.2f & %d \\\\"
           % (_usw, _nsw, ps_min, _ef1))
+
+    print("auc: ", _auc)
+    print("mean, std 10-percentile: ", _mean_bottom_ten, _std_bottom_ten)
+    print("mean, std 25-percentile: ", _mean_bottom_quartile, _std_bottom_quartile)
+
 
     # print("usw: ", _usw)
     # print("nsw: ", _nsw)
@@ -524,7 +538,7 @@ if __name__ == "__main__":
     alloc_file = args.alloc_file
     base_dir = args.base_dir
 
-    alloc = load_alloc(alloc_file)[0]
+    alloc = load_alloc(alloc_file)
 
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
