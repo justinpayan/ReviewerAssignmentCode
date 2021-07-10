@@ -15,7 +15,6 @@ def pr4a(pra, covs, loads, iter_limit):
     pr4a_instance = auto_assigner(pra, demand=covs[0], ability=loads, iter_limit=iter_limit)
     pr4a_instance.fair_assignment()
 
-
     alloc = pr4a_instance.fa
 
     return alloc

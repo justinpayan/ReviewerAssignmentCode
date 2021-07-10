@@ -5,6 +5,7 @@ import os
 import pickle
 import random
 
+from gini import *
 from collections import Counter, defaultdict
 from copy import deepcopy
 from itertools import product, permutations
@@ -86,7 +87,7 @@ def ef1_violations(alloc, pra):
                         found_reviewer_to_drop = True
                         break
                 if not found_reviewer_to_drop:
-                    print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
+                    # print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
                     num_ef1_violations += 1
 
     # alternative. Requires a ton of memory.
@@ -166,8 +167,15 @@ def reviewer_load_distrib(alloc, m):
 def get_percentile_mean_std(alloc, scores, perc):
     paper_scores = [get_valuation(p, alloc[p], scores) for p in alloc]
     paper_scores = sorted(paper_scores)
+    print(paper_scores[:20])
     percentile_scores = paper_scores[:math.floor(perc*len(paper_scores))]
     return np.mean(percentile_scores), np.std(percentile_scores)
+
+
+def compute_gini(alloc, scores):
+    paper_scores = [get_valuation(p, alloc[p], scores) for p in alloc]
+    paper_scores = sorted(paper_scores)
+    return gini(np.array(paper_scores))
 
 
 # Subtract the mean score of the bottom k from the mean score of the top k for k from 1 to n/2.
@@ -484,6 +492,7 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
     # Assume all covs are the same
     for round_num in range(covs[seln_order[0]]):
         for a in seln_order:
+            new_assn = False
             for r in best_revs[:, a]:
                 if loads_copy[r] > 0 and r not in alloc[a]:
                     if is_safe_choice(r, a, seln_order_idx_map, matrix_alloc,
@@ -494,10 +503,13 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
                         if round_num == 0:
                             first_reviewer[a] = r
                         papers_who_tried_revs[r].append(a)
+                        new_assn = True
                         break
                     else:
                         papers_who_tried_revs[r].append(a)
-
+            if not new_assn:
+                print("no new assn")
+                sys.exit(0)
     return alloc, loads_copy, matrix_alloc
 
 
@@ -507,6 +519,7 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
     _efx = efx_violations(alloc, paper_reviewer_affinities)
     _auc = compare_bottom_to_top(alloc, paper_reviewer_affinities, covs)
+    _gini = compute_gini(alloc, paper_reviewer_affinities)
     _mean_bottom_ten, _std_bottom_ten = get_percentile_mean_std(alloc, paper_reviewer_affinities, .10)
     _mean_bottom_quartile, _std_bottom_quartile = get_percentile_mean_std(alloc, paper_reviewer_affinities, .25)
     ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
@@ -516,10 +529,10 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     print("%0.2f & %0.2f & %0.2f & %d \\\\"
           % (_usw, _nsw, ps_min, _ef1))
 
-    print("auc: ", _auc)
+    # print("auc: ", _auc)
+    print("gini: ", _gini)
     print("mean, std 10-percentile: ", _mean_bottom_ten, _std_bottom_ten)
     print("mean, std 25-percentile: ", _mean_bottom_quartile, _std_bottom_quartile)
-
 
     # print("usw: ", _usw)
     # print("nsw: ", _nsw)
