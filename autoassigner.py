@@ -207,7 +207,7 @@ class auto_assigner:
 
         # One iteration of Steps 2 to 7 of the algorithm
         while not_assigned != set() and iter_counter < self.iter_limit and (time.time() < start_time + self.time_limit or iter_counter == 0):
-            
+            print(iter_counter)
             iter_counter += 1
             
             lower_bound = 0

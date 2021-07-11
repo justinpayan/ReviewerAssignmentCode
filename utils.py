@@ -72,6 +72,17 @@ def efx_violations(alloc, pra):
     return num_efx_violations
 
 
+def total_envy(alloc, scores):
+    envy = 0.0
+    n = scores.shape[1]
+    for paper, paper2 in product(range(n), range(n)):
+        if paper != paper2:
+            other = get_valuation(paper, alloc[paper2], scores)
+            curr = get_valuation(paper, alloc[paper], scores)
+            envy += abs(other - curr)
+    return envy
+
+
 def ef1_violations(alloc, pra):
     num_ef1_violations = 0
     n = pra.shape[1]
@@ -516,6 +527,7 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
 def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     _usw = usw(alloc, paper_reviewer_affinities)
     _nsw = nsw(alloc, paper_reviewer_affinities)
+    envy = total_envy(alloc, paper_reviewer_affinities)
     _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
     _efx = efx_violations(alloc, paper_reviewer_affinities)
     _auc = compare_bottom_to_top(alloc, paper_reviewer_affinities, covs)
@@ -530,6 +542,7 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
           % (_usw, _nsw, ps_min, _ef1))
 
     # print("auc: ", _auc)
+    print("envy: ", envy)
     print("gini: ", _gini)
     print("mean, std 10-percentile: ", _mean_bottom_ten, _std_bottom_ten)
     print("mean, std 25-percentile: ", _mean_bottom_quartile, _std_bottom_quartile)
