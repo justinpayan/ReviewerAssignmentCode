@@ -79,7 +79,7 @@ def total_envy(alloc, scores):
         if paper != paper2:
             other = get_valuation(paper, alloc[paper2], scores)
             curr = get_valuation(paper, alloc[paper], scores)
-            envy += abs(other - curr)
+            envy += max([other - curr, 0])
     return envy
 
 
