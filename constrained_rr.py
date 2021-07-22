@@ -1,17 +1,6 @@
-
 import time
-import multiprocessing as mp
-import sys
-
-import numpy as np
-
-from scipy.sparse import csr_matrix
-from scipy.sparse.csgraph import maximum_flow
-
-import networkx as nx
 
 from gurobipy import *
-import gurobipy as gp
 
 from utils import *
 
@@ -32,9 +21,12 @@ def add_vars_to_model(m, paper_rev_pairs):
 def add_constrs_to_model(m, x, covs, loads, matrix_alloc):
     papers = range(covs.shape[0])
     revs = range(loads.shape[0])
-    m.addConstrs((x.sum(paper, '*') == (covs[paper] - np.sum(matrix_alloc[:, paper])) for paper in papers), 'covs')  # Paper coverage constraints
-    m.addConstrs((x.sum('*', rev) <= (loads[rev] - np.sum(matrix_alloc[rev, :])) for rev in revs), 'loads')  # Reviewer load constraints
-    m.addConstrs((x[p, r] <= 1-matrix_alloc[r, p] for r, p in product(revs, papers)))
+    m.addConstrs((x.sum(paper, '*') == (covs[paper] - np.sum(matrix_alloc[:, paper])) for paper in papers),
+                 'covs')  # Paper coverage constraints
+    m.addConstrs((x.sum('*', rev) <= (loads[rev] - np.sum(matrix_alloc[rev, :])) for rev in revs),
+                 'loads')  # Reviewer load constraints
+    m.addConstrs((x[p, r] <= 1 - matrix_alloc[r, p] for r, p in product(revs, papers)))
+
 
 def construct_equivalence_classes(scores):
     ec = {}
@@ -48,7 +40,7 @@ def construct_equivalence_classes(scores):
             if score < current_value:
                 current_value = score
                 agent_ec[len(agent_ec)] = []
-            agent_ec[len(agent_ec)-1].append(rev)
+            agent_ec[len(agent_ec) - 1].append(rev)
         ec[agent] = agent_ec
     return ec
 
@@ -70,71 +62,7 @@ def max_usw_possible(new_r, new_a, matrix_alloc, loads, covs, scores):
     m.setObjective(x.prod(pras), GRB.MAXIMIZE)
     m.optimize()
 
-    # import re
-    # ma_copy = matrix_alloc.copy()
-    # ma_copy += new_pair
-    # print(np.max(ma_copy))
-    # for var in m.getVars():
-    #     if var.varName.startswith("assign") and var.x == 1.0:
-    #         s = re.findall("(\d+)", var.varName)
-    #         p = int(s[0])
-    #         r = int(s[1])
-    #         ma_copy[r, p] += 1
-    # print(np.max(np.sum(ma_copy, axis=0)))
-    # print(np.max(np.sum(ma_copy, axis=1)))
-    # print(np.max(ma_copy))
-    # print(np.where(ma_copy > 1))
-    # print(np.min(np.sum(ma_copy, axis=0)))
-    # print(np.sum(ma_copy * scores))
-
     return m.objVal + np.sum(scores * (matrix_alloc + new_pair))
-
-    # ma_copy = matrix_alloc.copy()
-    # reviewers = list(range(loads.shape[0]))
-    # reviewers = [i + 2 for i in reviewers]
-    # papers = list(range(covs.shape[0]))
-    # papers = [i + len(reviewers) + 2 for i in papers]
-    #
-    # G = nx.DiGraph()
-    # total_demand = np.sum(covs) - np.sum(matrix_alloc)
-    # G.add_node(0, demand=-1*total_demand)
-    # G.add_node(1, demand=total_demand)
-    # for r in reviewers:
-    #     G.add_node(r)
-    #     c = loads[r-2] - np.sum(matrix_alloc[r-2, :])
-    #     G.add_edge(0, r, weight=0, capacity=c)
-    # for p in papers:
-    #     G.add_node(p)
-    #     c = covs[p-2-len(reviewers)] - np.sum(matrix_alloc[:, p-2-len(reviewers)])
-    #     G.add_edge(p, 1, weight=0, capacity=c)
-    #     for r in reviewers:
-    #         wt = -1 * int(1e6 * scores[r-2, p-2-len(reviewers)])
-    #         c = 1
-    #         if (r-2 == new_r and p - 2 - len(reviewers) == new_a) or matrix_alloc[r-2, p-2-len(reviewers)]:
-    #             c = 0
-    #         G.add_edge(r, p, weight=wt, capacity=c)
-    # flowDict = nx.min_cost_flow(G)
-    # for p in papers:
-    #     for r in reviewers:
-    #         ma_copy[r-2, p-2-len(reviewers)] += flowDict[r][p]
-    #
-    # return np.sum(ma_copy * scores)
-
-    # print(flowDict)
-    # n = len(reviewers) + len(papers) + 2
-    # graph = csr_matrix(np.zeros((n, n), dtype=np.int32))
-    # # Draw edges from reviewers to papers
-    # graph[2:2 + len(reviewers), 2 + len(reviewers):] = (scores * 1e6).astype(np.int32)
-    # # Draw edges from source to reviewers
-    # graph[0, 2:2 + len(reviewers)] = loads - np.sum(matrix_alloc, axis=1)
-    # print(graph[0, 2:2 + len(reviewers)])
-    # # Draw edges from papers to sink
-    # graph[2 + len(reviewers):, 1] = covs.reshape(-1, 1) - np.sum(matrix_alloc, axis=0).reshape(-1, 1)
-    # print(graph[2 + len(reviewers):, 1])
-    #
-    # f = maximum_flow(graph, 0, 1)
-    # residuals = f.residual
-    # ma_copy += residuals[2:2+len(reviewers), 2+len(reviewers):].todense()
 
 
 def simple_greedy_usw(r, a, matrix_alloc, loads, covs, scores):
@@ -156,7 +84,6 @@ def simple_greedy_usw(r, a, matrix_alloc, loads, covs, scores):
     return np.sum(ma_copy * scores)
 
 
-
 """Check if we can assign this reviewer to this paper under the constraints. If so, then you need 
 to check if we can attain a USW of w in the final allocation if we do so. First greedily, then using an LP or
 flow or something."""
@@ -164,18 +91,12 @@ flow or something."""
 
 def can_assign(r, a, matrix_alloc, loads, covs, scores, w):
     # Should never happen
-    if np.sum(matrix_alloc[:, a]) >= covs[a]:
-        print("SHOULDN'T BE HERE")
-        sys.exit(0)
+    assert (np.sum(matrix_alloc[:, a]) < covs[a])
+
     if np.sum(matrix_alloc[r, :]) >= loads[r] or matrix_alloc[r, a]:
-        print("violation")
         return False
-    # greedy_usw = simple_greedy_usw(r, a, matrix_alloc, loads, covs, scores) / matrix_alloc.shape[1]
-    # print("greedy usw ", greedy_usw)
-    # if greedy_usw >= w:
-    #     return True
+
     best_usw = max_usw_possible(r, a, matrix_alloc, loads, covs, scores) / matrix_alloc.shape[1]
-    print("best usw ", best_usw)
     return best_usw >= w
 
 
@@ -189,23 +110,16 @@ def crr(scores, loads, covs, best_revs, alloc_file, w):
     matrix_alloc = np.zeros((scores.shape))
 
     ec = construct_equivalence_classes(scores)
-    print(ec[0])
 
     while np.sum(matrix_alloc) < np.sum(covs):
-        print(np.sum(matrix_alloc))
         success = False
         for a in sorted(poorest_agents):
-            print("try agent ", a)
-            print("agent has this many revs: ", np.sum(matrix_alloc[:, a]))
-            print("min number is ", np.min(np.sum(matrix_alloc, axis=0)))
             success = False
             # Try to take from this agent's best equivalence class. If we succeed, break and move on.
             # If not, move to next agent
             if ec[a]:
                 best_ec = sorted(ec[a].keys())[0]
-                print("best ec for a is ", best_ec)
                 for r in ec[a][best_ec]:
-                    print("r in best_ec ", r)
                     if can_assign(r, a, matrix_alloc, loads, covs, scores, w):
                         matrix_alloc[r, a] += 1
                         ec[a][best_ec].remove(r)
@@ -220,15 +134,12 @@ def crr(scores, loads, covs, best_revs, alloc_file, w):
                 break
 
         if not success:
-            print("not successful, poorest agents are: ", poorest_agents)
-            print([ec[a] for a in poorest_agents])
             for a in sorted(poorest_agents):
                 if ec[a]:
                     best_ec = sorted(ec[a].keys())[0]
                     del ec[a][best_ec]
                     if not ec[a]:
                         del ec[a]
-            print([ec[a] for a in poorest_agents])
 
         # if we went through all poorest_agents and haven't assigned a good, remove their top equivalence
         #  class and go back

@@ -22,8 +22,6 @@ def greedy(scores, loads, covs, best_revs, alloc_file):
     ordering = []
     alloc = None
 
-    # alloc = safe_rr(ordering, scores, covs, loads, best_revs)[0]
-
     curr_usw = 0
     max_mg = covs[0]*np.max(scores)
 
@@ -54,7 +52,6 @@ def greedy(scores, loads, covs, best_revs, alloc_file):
             usws = pool.map(compute_usw, zip(*list_of_copied_args))
 
             for a, usw in zip(sorted_agents, usws):
-                print(a, usw)
                 if usw > best_usw:
                     best_usw = usw
                     next_agent = a

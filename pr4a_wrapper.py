@@ -1,8 +1,3 @@
-# Produce an allocation which has maximal USW subject to the EF1 constraint
-# We will just encode the EF1 constraint in Gurobi and see what happens.
-
-import os
-
 from autoassigner import *
 from utils import *
 
