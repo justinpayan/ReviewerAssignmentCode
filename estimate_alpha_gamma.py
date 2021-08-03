@@ -113,7 +113,6 @@ if __name__ == "__main__":
     args = parse_args()
     dataset = args.dataset
     base_dir = args.base_dir
-    alloc_file = args.alloc_file
 
     random.seed(args.seed)
 

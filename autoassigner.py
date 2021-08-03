@@ -1,5 +1,8 @@
 #!/usr/bin/env python2
 
+# Code obtained from Ivan Stelmakh's website (https://www.cs.cmu.edu/~istelmak/), and slightly modified by
+# Justin Payan.
+
 from gurobipy import Model, GRB
 from itertools import product
 import numpy as np

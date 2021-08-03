@@ -72,6 +72,7 @@ if __name__ == "__main__":
     args = parse_args()
     base_dir = args.base_dir
     dataset = args.dataset
+    alloc_file = args.alloc_file
 
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
@@ -79,7 +80,7 @@ if __name__ == "__main__":
 
     alloc = tpms(paper_reviewer_affinities, covs, loads)
 
-    save_alloc(alloc, args.alloc_file)
+    save_alloc(alloc, alloc_file)
 
     print(alloc)
     print_stats(alloc, paper_reviewer_affinities, covs)
