@@ -1,6 +1,6 @@
 # Optimizing Orders for Fair Reviewer Assignment
 
-This repository implements the Greedy Reviewer Round Robin reviewer assignment algorithm from our paper, I Will Have Order! Optimizing Orders for Fair Reviewer Assignment. All analysis and baselines can be run using code in this repository as well.
+This repository implements the Greedy Reviewer Round Robin reviewer assignment algorithm from our paper, [I Will Have Order! Optimizing Orders for Fair Reviewer Assignment](https://arxiv.org/abs/2108.02126). All analysis and baselines can be run using code in this repository as well.
 Please cite our paper if you use this work.
 
 ## Data
