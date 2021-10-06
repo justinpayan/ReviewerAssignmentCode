@@ -1,6 +1,6 @@
 # Optimizing Orders for Fair Reviewer Assignment
 
-This repository implements the Greedy Reviewer Round Robin reviewer assignment algorithm from our paper, [I Will Have Order! Optimizing Orders for Fair Reviewer Assignment](https://arxiv.org/abs/2108.02126). All analysis and baselines can be run using code in this repository as well.
+This repository implements the Greedy Reviewer Round Robin reviewer assignment algorithm from our paper, I Will Have Order! Optimizing Orders for Fair Reviewer Assignment. All analysis and baselines can be run using code in this repository as well.
 Please cite our paper if you use this work.
 
 ## Data
@@ -40,7 +40,3 @@ To execute and compute statistics for PeerReview4All, run `python pr4a_wrapper.p
 To run and evaluate CRR, run `python constrained_rr.py --dataset midl --alloc_file midl_crr --w_value 1.68`. The `w_value` parameter specifies the mean welfare target, so the algorithm will return an allocation with average welfare at least that high (if possible).
 
 To run and evaluate TPMS, run `python tpms.py --dataset midl --alloc_file midl_tpms`.
-
-## Contact
-
-Please contact Justin Payan (`jpayan@umass.edu`) for any questions/comments/discussion about the code or the paper.
