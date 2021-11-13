@@ -196,6 +196,29 @@ def safe_rr_usw(seln_order, pra, covs, loads, best_revs):
     return _usw, rev_loads_remaining, matrix_alloc
 
 
+def is_safe_choice_orderless(r, a, matrix_alloc, papers_who_tried_revs, pra, round_num, first_reviewer):
+    if round_num == 0 or not len(papers_who_tried_revs[r]):
+        return True
+
+    # Construct the allocations we'll use for comparison
+    a_alloc_orig = matrix_alloc[:, a]
+    a_alloc_proposed = a_alloc_orig.copy()
+    a_alloc_proposed[r] = 1
+    a_alloc_proposed_reduced = a_alloc_proposed.copy()
+    a_alloc_proposed_reduced[first_reviewer[a]] = 0
+
+    for p in papers_who_tried_revs[r]:
+        if p != a:
+            # Check that they will not envy a if we add r to a.
+            _a = a_alloc_proposed_reduced
+            v_p_for_a_proposed = np.sum(_a * pra[:, p])
+
+            v_p_for_p = np.sum(matrix_alloc[:, p] * pra[:, p])
+            if v_p_for_a_proposed > v_p_for_p and not np.isclose(v_p_for_a_proposed, v_p_for_p):
+                return False
+    return True
+
+
 """We are trying to add r to a's bundle, but need to be sure we meet the criteria to prove the allocation is EF1. 
 For all papers, we need to make sure the inductive step holds that a paper p always prefers its own assignment
 to that of another paper (a, here) ~other than the 0th round with respect to p~. So we check, for any papers 
