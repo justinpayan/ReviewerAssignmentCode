@@ -1,17 +1,11 @@
 import argparse
 import math
-import numpy as np
 import os
 import pickle
-import random
 
 from gini import *
 from collections import Counter, defaultdict
-from copy import deepcopy
-from itertools import product, permutations
-from sklearn import metrics
-
-from tqdm import tqdm
+from itertools import product
 
 
 def usw(alloc, pra):
@@ -84,6 +78,9 @@ def ef1_violations(alloc, pra):
     n = pra.shape[1]
     for paper, paper2 in product(range(n), range(n)):
         if paper != paper2:
+            # other = get_valuation(paper, alloc[paper2], pra) - np.max(pra[alloc[paper2], [paper2] * len(alloc[paper2])])
+            # curr = get_valuation(p, alloc[p], scores)
+
             other = get_valuation(paper, alloc[paper2], pra)
             curr = get_valuation(paper, alloc[paper], pra)
             found_reviewer_to_drop = False
@@ -164,13 +161,13 @@ def compute_gini(alloc, scores):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="midl")
-    parser.add_argument("--base_dir", type=str, default="./fair-matching/data")
+    parser.add_argument("--base_dir", type=str, default=os.path.join(os.getcwd(), "..", "fair-matching", "data"))
     parser.add_argument("--seed", type=int, default=31415)
     parser.add_argument("--w_value", type=float, default=0.0)
     parser.add_argument("--alloc_file", type=str, default="allocation")
     parser.add_argument("--num_processes", type=int, default=1)
     parser.add_argument("--sample_size", type=int, default=-1)
-    parser.add_argument("--fair_matching_dir", type=str, default="./fair-matching")
+    parser.add_argument("--fair_matching_dir", type=str, default=os.path.join(os.getcwd(), "..", "fair-matching"))
     parser.add_argument("--fairflow_timestamp", type=str, default=None)
     parser.add_argument("--fairir_timestamp", type=str, default=None)
     return parser.parse_args()
