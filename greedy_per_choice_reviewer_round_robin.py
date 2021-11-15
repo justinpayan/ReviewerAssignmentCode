@@ -1,6 +1,6 @@
-
 import time
 import multiprocessing as mp
+import sys
 
 from utils import *
 
@@ -31,44 +31,61 @@ def greedy(scores, loads, covs, best_revs, alloc_file, num_processes, sample_siz
 
     loads_copy = loads.copy()
 
-    papers_who_tried_revs = defaultdict(list)
-    first_reviewer = {}
+    best_revs_map = {}
+    for a in range(n):
+        best_revs_map[a] = best_revs[:, a].tolist()
+
+    # Maintain the invariant that no paper can take a reviewer that is worth more to some other paper
+    # than what that paper has chosen in previous rounds. So basically, each round we will construct
+    # the vector of the realized values for all papers. Then when you try to select a reviewer, you check
+    # if np.any(scores[r, :] > previous_attained_scores). If so, you move on. Actually, it doesn't need to be
+    # per round. Suppose that i comes before j in round t. Then suppose i picks something, and my non-per-round
+    # update rules out what j was going to pick (because it is worth more to i). If j is allowed to pick this thing, i
+    # would have been ok to pick it too. But it didn't.
+
+    previous_attained_scores = np.ones(n) * 1000
+
+    max_mg_per_agent = np.ones(n) * 1000
 
     while len(ordering) < np.sum(covs):
+        for r in range(m):
+            if np.any(scores[r, :] > previous_attained_scores):
+                # Remove it
+                loads_copy[r] = 0
+
         next_agent = None
         next_reviewer = None
         next_mg = -10000
         for a in sorted(available_agents, key=lambda x: random.random()):
-            if next_mg == max_mg:
-                break
-            for r in best_revs[:, a]:
-                if scores[r, a] > next_mg and \
-                    loads_copy[r] > 0 and \
-                    r not in alloc[a] and \
-                    is_safe_choice_orderless(r, a, matrix_alloc,
-                                             papers_who_tried_revs,
-                                             scores, round_num,
-                                             first_reviewer):
-                    next_agent = a
-                    next_mg = scores[r, a]
+            if max_mg_per_agent[a] >= next_mg:
+                if next_mg == max_mg:
+                    break
+                for r in best_revs_map[a]:
+                    if loads_copy[r] <= 0 or r in alloc[a]:
+                        best_revs_map[a].remove(r)
+                    else:
+                        max_mg_per_agent[a] = scores[r, a]
+                    if scores[r, a] > next_mg:
+                        if loads_copy[r] > 0 and \
+                                r not in alloc[a]:
+                            next_agent = a
+                            next_mg = scores[r, a]
+                            break
+                    else:
+                        break
 
         new_assn = False
-        for r in best_revs[:, next_agent]:
+        for r in best_revs_map[next_agent]:
             if loads_copy[r] > 0 and r not in alloc[next_agent]:
-                if is_safe_choice_orderless(r, next_agent, matrix_alloc,
-                                             papers_who_tried_revs,
-                                             scores, round_num,
-                                             first_reviewer):
-                    loads_copy[r] -= 1
-                    alloc[next_agent].append(r)
-                    matrix_alloc[r, next_agent] = 1
-                    if round_num == 0:
-                        first_reviewer[next_agent] = r
-                    papers_who_tried_revs[r].append(next_agent)
-                    new_assn = True
-                    break
-                else:
-                    papers_who_tried_revs[r].append(next_agent)
+                if np.any(previous_attained_scores < scores[r, :]):
+                    print("error")
+                    sys.exit(0)
+                loads_copy[r] -= 1
+                alloc[next_agent].append(r)
+                matrix_alloc[r, next_agent] = 1
+                previous_attained_scores[next_agent] = scores[r, next_agent]
+                new_assn = True
+                break
 
         print(next_agent)
         print(next_mg)
