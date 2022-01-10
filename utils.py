@@ -188,12 +188,17 @@ def load_alloc(alloc_file):
 
 # Return the usw of running round robin on the agents in the list "seln_order"
 def safe_rr_usw(seln_order, pra, covs, loads, best_revs):
-    # rr_alloc, rev_loads_remaining, matrix_alloc = rr(seln_order, pra, covs, loads, best_revs)
     _, rev_loads_remaining, matrix_alloc = safe_rr(seln_order, pra, covs, loads, best_revs)
-    # _usw = usw(rr_alloc, pra)
     _usw = np.sum(matrix_alloc * pra)
-    # print("USW ", time.time() - start)
     return _usw, rev_loads_remaining, matrix_alloc
+
+
+# Return the usw of running round robin on the agents in the list "seln_order".
+# This is for use when we are dealing with reviewers rather than papers.
+def safe_rr_revs_usw(seln_order, pra, covs, loads, best_papers):
+    _, paper_covs_remaining, matrix_alloc = safe_rr_revs(seln_order, pra, covs, loads, best_papers)
+    _usw = np.sum(matrix_alloc * pra)
+    return _usw, paper_covs_remaining, matrix_alloc
 
 
 """We are trying to add r to a's bundle, but need to be sure we meet the criteria to prove the allocation is EF1. 
@@ -229,6 +234,43 @@ def is_safe_choice(r, a, seln_order_idx_map, matrix_alloc, papers_who_tried_revs
 
             v_p_for_p = np.sum(matrix_alloc[:, p] * pra[:, p])
             if v_p_for_a_proposed > v_p_for_p and not np.isclose(v_p_for_a_proposed, v_p_for_p):
+                return False
+    return True
+
+
+"""We are trying to add r to a's bundle, but need to be sure we meet the criteria to prove the allocation is EF1. 
+For all papers, we need to make sure the inductive step holds that a paper p always prefers its own assignment
+to that of another paper (a, here) ~other than the 0th round with respect to p~. So we check, for any papers 
+p earlier than a, do they prefer their own entire bundle to a's entire bundle? And for papers later than a, do they
+prefer their own bundle to a's bundle other than the 1st reviewer? 
+
+The first round is always safe.
+
+Finally, we only need to check papers who have previously chosen this reviewer we are about to choose, because if 
+they haven't chosen it they must have valued their own choices more. 
+"""
+
+
+def is_safe_choice_revs(p, r, seln_order_idx_map, matrix_alloc, revs_who_tried_papers, pra, round_num, first_paper):
+    if round_num == 0 or not len(revs_who_tried_papers[p]):
+        return True
+    r_idx = seln_order_idx_map[r]
+
+    # Construct the allocations we'll use for comparison
+    r_alloc_orig = matrix_alloc[r, :]
+    r_alloc_proposed = r_alloc_orig.copy()
+    r_alloc_proposed[p] = 1
+    r_alloc_proposed_reduced = r_alloc_proposed.copy()
+    r_alloc_proposed_reduced[first_paper[r]] = 0
+
+    for r_prime in revs_who_tried_papers[p]:
+        if r_prime != r:
+            # Check that they will not envy r if we add p to r.
+            _r = r_alloc_proposed if (seln_order_idx_map[r_prime] < r_idx) else r_alloc_proposed_reduced
+            v_rprime_for_r_proposed = np.sum(_r * pra[r_prime, :])
+
+            v_rprime_for_rprime = np.sum(matrix_alloc[r_prime, :] * pra[r_prime, :])
+            if v_rprime_for_r_proposed > v_rprime_for_rprime and not np.isclose(v_rprime_for_r_proposed, v_rprime_for_rprime):
                 return False
     return True
 
@@ -269,6 +311,49 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
             if not new_assn:
                 print("no new assn")
                 return alloc, loads_copy, matrix_alloc
+    return alloc, loads_copy, matrix_alloc
+
+
+# To be used for assigning papers to reviewers, rather than the other way around.
+def safe_rr_revs(seln_order, pra, covs, loads, best_papers):
+    alloc = {r: list() for r in seln_order}
+    matrix_alloc = np.zeros((pra.shape), dtype=np.bool)
+
+    # loads_copy = loads.copy()
+    covs_copy = covs.copy()
+
+    # When selecting a paper, you need to check for EF1 (inductive step) with all other reviewers who either
+    # previously chose that paper or were themselves forced to pass over that paper... aka anyone
+    # that ever TRIED to pick that paper. A reviewer that never
+    # tried to pick that paper will have picked one they liked better anyway.
+    revs_who_tried_papers = defaultdict(list)
+    first_paper = {}
+
+    seln_order_idx_map = {r: idx for idx, r in enumerate(seln_order)}
+    num_rounds = np.sum(covs)/loads.shape[0]
+
+    for round_num in range(num_rounds):
+        for r in seln_order:
+            # If there are a lot of reviewers, we may assign all papers at some point in the final round.
+            if np.sum(covs_copy):
+                new_assn = False
+                for p in best_papers[r, :]:
+                    if covs_copy[p] > 0 and p not in alloc[r]:
+                        if is_safe_choice(r, a, seln_order_idx_map, matrix_alloc,
+                                          papers_who_tried_revs, pra, round_num, first_reviewer):
+                            loads_copy[r] -= 1
+                            alloc[a].append(r)
+                            matrix_alloc[r, a] = 1
+                            if round_num == 0:
+                                first_reviewer[a] = r
+                            papers_who_tried_revs[r].append(a)
+                            new_assn = True
+                            break
+                        else:
+                            papers_who_tried_revs[r].append(a)
+                if not new_assn:
+                    print("no new assn")
+                    return alloc, loads_copy, matrix_alloc
     return alloc, loads_copy, matrix_alloc
 
 
