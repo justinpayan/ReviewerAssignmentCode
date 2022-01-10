@@ -547,15 +547,10 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     print("mean, std 10-percentile: ", _mean_bottom_ten, _std_bottom_ten)
     print("mean, std 25-percentile: ", _mean_bottom_quartile, _std_bottom_quartile)
 
-    # print("usw: ", _usw)
-    # print("nsw: ", _nsw)
-    # print("ef1 violations: ", _ef1)
-    # print("efx violations: ", _efx)
-    # print("auc: ", _auc)
-    # print("paper coverage violations: ", paper_coverage_violations(alloc, covs))
-    # print("reviewer load distribution: ", reviewer_load_distrib(alloc, paper_reviewer_affinities.shape[0]))
-    # print("paper scores: ", ps_min, ps_max, ps_mean, ps_std)
-    # print()
+    # Number of papers per reviewer
+    _, m = paper_reviewer_affinities.shape
+    print(m)
+    print(reviewer_load_distrib(alloc, m))
 
 
 if __name__ == "__main__":
