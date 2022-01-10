@@ -548,7 +548,7 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     print("mean, std 25-percentile: ", _mean_bottom_quartile, _std_bottom_quartile)
 
     # Number of papers per reviewer
-    _, m = paper_reviewer_affinities.shape
+    m, _ = paper_reviewer_affinities.shape
     print(m)
     print(reviewer_load_distrib(alloc, m))
 
