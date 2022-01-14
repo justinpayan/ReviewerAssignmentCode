@@ -169,7 +169,7 @@ def reviewer_load_distrib(alloc, m):
     rev_loads.extend([0] * revs_no_load)
     rev_load_dist[0] = revs_no_load
 
-    return "%s, min: %d, max: %d, std: %.2f" % (str(rev_load_dist),
+    return "%s, min: %d, max: %d, std: %.2f" % (str(sorted(rev_load_dist.items())),
                                                 min(rev_loads),
                                                 max(rev_loads),
                                                 np.std(rev_loads))
@@ -525,32 +525,84 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
 
 
 def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
-    _usw = usw(alloc, paper_reviewer_affinities)
-    _nsw = nsw(alloc, paper_reviewer_affinities)
-    envy = total_envy(alloc, paper_reviewer_affinities)
-    _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
-    _efx = efx_violations(alloc, paper_reviewer_affinities)
-    _auc = compare_bottom_to_top(alloc, paper_reviewer_affinities, covs)
-    _gini = compute_gini(alloc, paper_reviewer_affinities)
-    _mean_bottom_ten, _std_bottom_ten = get_percentile_mean_std(alloc, paper_reviewer_affinities, .10)
-    _mean_bottom_quartile, _std_bottom_quartile = get_percentile_mean_std(alloc, paper_reviewer_affinities, .25)
-    ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
+    # _usw = usw(alloc, paper_reviewer_affinities)
+    # _nsw = nsw(alloc, paper_reviewer_affinities)
+    # envy = total_envy(alloc, paper_reviewer_affinities)
+    # _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
+    # _efx = efx_violations(alloc, paper_reviewer_affinities)
+    # _auc = compare_bottom_to_top(alloc, paper_reviewer_affinities, covs)
+    # _gini = compute_gini(alloc, paper_reviewer_affinities)
+    # _mean_bottom_ten, _std_bottom_ten = get_percentile_mean_std(alloc, paper_reviewer_affinities, .10)
+    # _mean_bottom_quartile, _std_bottom_quartile = get_percentile_mean_std(alloc, paper_reviewer_affinities, .25)
+    # ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
 
-    # print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d & %0.2f \\\\"
-    #       % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx, _auc))
-    print("%0.2f & %0.2f & %0.2f & %d \\\\"
-          % (_usw, _nsw, ps_min, _ef1))
+    # # print("%0.2f & %0.2f & %0.2f & %0.2f & %0.2f & %d & %d & %0.2f \\\\"
+    # #       % (alg_time, _usw, _nsw, ps_min, ps_mean, _ef1, _efx, _auc))
+    # print("%0.2f & %0.2f & %0.2f & %d \\\\"
+    #       % (_usw, _nsw, ps_min, _ef1))
 
-    # print("auc: ", _auc)
-    print("envy: ", envy)
-    print("gini: ", _gini)
-    print("mean, std 10-percentile: ", _mean_bottom_ten, _std_bottom_ten)
-    print("mean, std 25-percentile: ", _mean_bottom_quartile, _std_bottom_quartile)
+    # # print("auc: ", _auc)
+    # print("envy: ", envy)
+    # print("gini: ", _gini)
+    # print("mean, std 10-percentile: ", _mean_bottom_ten, _std_bottom_ten)
+    # print("mean, std 25-percentile: ", _mean_bottom_quartile, _std_bottom_quartile)
 
     # Number of papers per reviewer
     m, _ = paper_reviewer_affinities.shape
     print(m)
+    print(np.max(paper_reviewer_affinities))
     print(reviewer_load_distrib(alloc, m))
+
+    paper_reviewer_affinities = paper_reviewer_affinities - np.max(paper_reviewer_affinities)
+    # Compute USW, NSW, worst burden, and num EF1 violations for REVIEWERS
+
+    usw = 0
+    rev_scores = defaultdict(int)
+    reverse_alloc = defaultdict(list)
+    for p in alloc:
+        for r in alloc[p]:
+            usw += paper_reviewer_affinities[r, p]
+            rev_scores[r] += paper_reviewer_affinities[r, p]
+            reverse_alloc[r].append(p)
+    print("USW (revs): ", usw / m)
+
+    all_rev_scores = list(rev_scores.values())
+
+    nsw = 1
+    for r in rev_scores:
+        if rev_scores[r]:
+            nsw *= ((-1*rev_scores[r])**(1/m))
+    print("NSW (revs) ", -1*nsw)
+
+    print("Min score (revs): ", np.min(all_rev_scores))
+
+    for perc in [.1, .25]:
+        _rev_scores = [rev_scores[r] for r in range(m)]
+        _rev_scores = sorted(_rev_scores)
+        percentile_scores = _rev_scores[:math.floor(perc * m)]
+        print("Mean std at ", perc, np.mean(percentile_scores), np.std(percentile_scores))
+
+    num_ef1_violations = 0
+    for rev, rev2 in product(range(m), range(m)):
+        if rev != rev2:
+            if reverse_alloc[rev]:
+                other = np.sum([paper_reviewer_affinities[rev, p] for p in reverse_alloc[rev2]])
+                curr = np.sum([paper_reviewer_affinities[rev, p] for p in reverse_alloc[rev]])
+                found_paper_to_drop = False
+                for p in reverse_alloc[rev]:
+                    val_dropped = curr - paper_reviewer_affinities[rev, p]
+                    # print(curr)
+                    # print(val_dropped)
+                    # print(other)
+                    # print(val_dropped >= other)
+                    if val_dropped >= other or np.abs(val_dropped - other) < 1e-8:
+                        found_paper_to_drop = True
+                        break
+                if not found_paper_to_drop:
+                    # print(rev, rev2, reverse_alloc[rev], reverse_alloc[rev2], curr, other)
+                    # print(paper, paper2, curr, other, alloc[paper], alloc[paper2])
+                    num_ef1_violations += 1
+    print("Number of EF1 violations: ", num_ef1_violations)
 
 
 if __name__ == "__main__":
