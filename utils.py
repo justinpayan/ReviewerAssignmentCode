@@ -525,7 +525,8 @@ def safe_rr(seln_order, pra, covs, loads, best_revs):
 
 
 def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
-    # _usw = usw(alloc, paper_reviewer_affinities)
+    _usw = usw(alloc, paper_reviewer_affinities)
+    print("Original USW, ",  _usw)
     # _nsw = nsw(alloc, paper_reviewer_affinities)
     # envy = total_envy(alloc, paper_reviewer_affinities)
     # _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
@@ -556,15 +557,15 @@ def print_stats(alloc, paper_reviewer_affinities, covs, alg_time=0.0):
     paper_reviewer_affinities = paper_reviewer_affinities - np.max(paper_reviewer_affinities)
     # Compute USW, NSW, worst burden, and num EF1 violations for REVIEWERS
 
-    usw = 0
+    rusw = 0
     rev_scores = defaultdict(int)
     reverse_alloc = defaultdict(list)
     for p in alloc:
         for r in alloc[p]:
-            usw += paper_reviewer_affinities[r, p]
+            rusw += paper_reviewer_affinities[r, p]
             rev_scores[r] += paper_reviewer_affinities[r, p]
             reverse_alloc[r].append(p)
-    print("USW (revs): ", usw / m)
+    print("USW (revs): ", rusw / m)
 
     all_rev_scores = list(rev_scores.values())
 
