@@ -1,7 +1,9 @@
 
 import time
 import multiprocessing as mp
+import random
 
+from calculate_stats import *
 from utils import *
 
 
@@ -112,4 +114,4 @@ if __name__ == "__main__":
     paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy"))
 
     print(alloc)
-    print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+    print_stats(alloc, paper_reviewer_affinities)
