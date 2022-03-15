@@ -2,6 +2,8 @@ import time
 
 from gurobipy import *
 
+import numpy as np
+from itertools import product
 from utils import *
 
 

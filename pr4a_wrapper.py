@@ -1,5 +1,6 @@
 from autoassigner import *
 from utils import *
+from calculate_stats import *
 
 
 def pr4a(pra, covs, loads, iter_limit):
@@ -34,4 +35,4 @@ if __name__ == "__main__":
     save_alloc(alloc, alloc_file)
 
     print(alloc)
-    print_stats(alloc, paper_reviewer_affinities, covs)
+    print_stats(alloc, paper_reviewer_affinities)

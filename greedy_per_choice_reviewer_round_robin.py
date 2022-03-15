@@ -1,9 +1,9 @@
 import random
-import sys
 import time
 
 
 from utils import *
+from calculate_stats import *
 
 
 def compute_usw(args):
@@ -21,8 +21,6 @@ def greedy(scores, loads, covs, best_revs, alloc_file, num_processes, sample_siz
     available_agents = set(range(n))
     ordering = []
     alloc = {p: list() for p in available_agents}
-
-    curr_usw = 0
 
     round_num = 0
 
@@ -68,12 +66,13 @@ def greedy(scores, loads, covs, best_revs, alloc_file, num_processes, sample_siz
     while len(ordering) < np.sum(covs):
         next_agent = None
         next_mg = -10000
-        for a in sorted(available_agents, key=lambda x: random.random()):
+        for a in sorted(available_agents):
             if next_mg == max_mg:
                 break
+            removal_set = []
             for r in best_revs_map[a]:
                 if loads_copy[r] <= 0 or r in alloc[a]:
-                    best_revs_map[a].remove(r)
+                    removal_set.append(r)
                 elif scores[r, a] > next_mg:
                     # This agent might be the greedy choice.
                     # Check if this is a valid assignment, then make it the greedy choice if so.
@@ -85,6 +84,8 @@ def greedy(scores, loads, covs, best_revs, alloc_file, num_processes, sample_siz
                 else:
                     # This agent cannot be the greedy choice
                     break
+            for r in removal_set:
+                best_revs_map[a].remove(r)
 
         new_assn = False
         for r in best_revs_map[next_agent]:
@@ -96,9 +97,6 @@ def greedy(scores, loads, covs, best_revs, alloc_file, num_processes, sample_siz
                 new_assn = True
                 break
 
-        print(next_agent)
-        print(next_mg)
-        print(len(ordering))
         if not new_assn:
             print("no new assn")
             return alloc, loads_copy, matrix_alloc
@@ -153,4 +151,4 @@ if __name__ == "__main__":
     paper_capacities = np.load(os.path.join(base_dir, dataset, "covs.npy"))
 
     print(alloc)
-    print_stats(alloc, paper_reviewer_affinities, paper_capacities)
+    print_stats(alloc, paper_reviewer_affinities)

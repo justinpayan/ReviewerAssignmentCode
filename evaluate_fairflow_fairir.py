@@ -1,4 +1,5 @@
 from utils import *
+from calculate_stats import *
 
 
 if __name__ == "__main__":
@@ -13,15 +14,15 @@ if __name__ == "__main__":
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
 
-    fairflow_soln = load_fairflow_soln("%s/exp_out/%s/fairflow/%s/results/assignment.npy" %
+    fairflow_soln = load_soln_from_npy("%s/exp_out/%s/fairflow/%s/results/assignment.npy" %
                                        (fair_matching_dir, dataset, fairflow_timestamp))
     print("Fairflow Results")
-    print_stats(fairflow_soln, scores, covs)
+    print_stats(fairflow_soln, scores)
     print("***********\n***********\n")
 
-    fairir_soln = load_fairflow_soln("%s/exp_out/%s/fairir/%s/results/assignment.npy" %
+    fairir_soln = load_soln_from_npy("%s/exp_out/%s/fairir/%s/results/assignment.npy" %
                                      (fair_matching_dir, dataset, fairir_timestamp))
     print("FairIR Results")
-    print_stats(fairir_soln, scores, covs)
+    print_stats(fairir_soln, scores)
     print("***********\n***********\n")
 
