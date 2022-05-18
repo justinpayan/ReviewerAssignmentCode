@@ -11,6 +11,8 @@ os.chdir("/mnt/nfs/scratch1/jpayan/openreview-matcher")
 sys.path.insert(0, "/mnt/nfs/scratch1/jpayan/openreview-matcher")
 from matcher.solvers import FairSequence, FairFlow
 os.chdir(cwd)
+
+from pr4a_wrapper import pr4a
 from tpms import tpms
 
 encoder = namedtuple(
@@ -125,21 +127,27 @@ if __name__ == "__main__":
             print(num_ef1_violations)
             nums_ef1_violations.append(num_ef1_violations)
     else:
-        if args.algorithm == "TPMS":
-            for _ in range(10):
-                start = time.time()
+        for _ in range(10):
+            start = time.time()
+            if args.algorithm == "TPMS":
                 res = tpms(scores, covs, loads)
-                runtimes.append(time.time() - start)
+            elif args.algorithm == "PR4A":
+                iter_limit = np.inf
+                if dset != "midl":
+                    iter_limit = 1
+                res = pr4a(scores, covs, loads, iter_limit)
 
-                usw = np.sum(convert_soln_to_npy(res, loads.shape[0], covs.shape[0]) * scores)
+            runtimes.append(time.time() - start)
 
-                print(usw)
-                print(usw / covs.shape[0])
-                usws.append(usw / covs.shape[0])
+            usw = np.sum(convert_soln_to_npy(res, loads.shape[0], covs.shape[0]) * scores)
 
-                num_ef1_violations = ef1_violations(res, scores)
-                print(num_ef1_violations)
-                nums_ef1_violations.append(num_ef1_violations)
+            print(usw)
+            print(usw / covs.shape[0])
+            usws.append(usw / covs.shape[0])
+
+            num_ef1_violations = ef1_violations(res, scores)
+            print(num_ef1_violations)
+            nums_ef1_violations.append(num_ef1_violations)
 
     with open("%s_%s_speed_test" % (dset, args.algorithm), 'w') as f:
         f.write("USW: %.2f pm %.2f, EF1 violations: %.2f pm %.2f, Runtime %.2f pm %.2f" %
