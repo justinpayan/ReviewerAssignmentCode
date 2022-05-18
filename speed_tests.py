@@ -76,7 +76,7 @@ def convert_soln_from_npy(npy_alloc):
 
 
 def convert_soln_to_npy(dict_alloc, m, n):
-    npy_alloc = np.zeros(m, n)
+    npy_alloc = np.zeros((m, n))
 
     for p in dict_alloc:
         for r in dict_alloc[p]:
