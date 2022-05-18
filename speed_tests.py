@@ -1,12 +1,14 @@
 import argparse
 import numpy as np
 import os
+import sys
 import time
 
 from collections import namedtuple
 from itertools import product
 cwd = os.getcwd()
 os.chdir("/mnt/nfs/scratch1/jpayan/openreview-matcher")
+sys.path.insert(0, "/mnt/nfs/scratch1/jpayan/openreview-matcher")
 from matcher.solvers import FairSequence, FairFlow
 os.chdir(cwd)
 
