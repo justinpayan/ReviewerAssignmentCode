@@ -99,6 +99,7 @@ if __name__ == "__main__":
             loads,
             covs,
             encoder(scores.transpose(), constraint_matrix.transpose()),
+            allow_zero_score_assignments=True
         )
         start = time.time()
         res = solver.solve()
