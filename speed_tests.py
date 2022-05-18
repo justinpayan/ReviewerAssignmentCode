@@ -5,7 +5,10 @@ import time
 
 from collections import namedtuple
 from itertools import product
+cwd = os.getcwd()
+os.chdir("/mnt/nfs/scratch1/jpayan/openreview-matcher")
 from matcher.solvers import FairSequence, FairFlow
+os.chdir(cwd)
 
 encoder = namedtuple(
     "Encoder", ["aggregate_score_matrix", "constraint_matrix"]
@@ -71,6 +74,8 @@ if __name__ == "__main__":
     args = parse_args()
     dset = args.dataset
     data_dir = args.data_dir
+
+
 
     scores = np.load(os.path.join(data_dir, dset, "scores.npy"))
     loads = np.load(os.path.join(data_dir, dset, "loads.npy"))
