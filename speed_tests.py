@@ -11,6 +11,7 @@ os.chdir("/mnt/nfs/scratch1/jpayan/openreview-matcher")
 sys.path.insert(0, "/mnt/nfs/scratch1/jpayan/openreview-matcher")
 from matcher.solvers import FairSequence, FairFlow
 os.chdir(cwd)
+from tpms import tpms
 
 encoder = namedtuple(
     "Encoder", ["aggregate_score_matrix", "constraint_matrix"]
@@ -72,12 +73,20 @@ def convert_soln_from_npy(npy_alloc):
     return alloc
 
 
+def convert_soln_to_npy(dict_alloc, m, n):
+    npy_alloc = np.zeros(m, n)
+
+    for p in dict_alloc:
+        for r in dict_alloc[p]:
+            npy_alloc[r, p] = 1
+
+    return npy_alloc
+
+
 if __name__ == "__main__":
     args = parse_args()
     dset = args.dataset
     data_dir = args.data_dir
-
-
 
     scores = np.load(os.path.join(data_dir, dset, "scores.npy"))
     loads = np.load(os.path.join(data_dir, dset, "loads.npy"))
@@ -85,35 +94,52 @@ if __name__ == "__main__":
     constraint_matrix = np.zeros(scores.shape)
     mins = np.zeros(loads.shape)
 
-    if args.algorithm == "FairFlow":
-        solver_alg = FairFlow
-    elif args.algorithm == "FairSequence":
-        solver_alg = FairSequence
-
     runtimes = []
     usws = []
     nums_ef1_violations = []
-    for _ in range(10):
-        solver = solver_alg(
-            mins,
-            loads,
-            covs,
-            encoder(scores.transpose(), constraint_matrix.transpose()),
-            allow_zero_score_assignments=True
-        )
-        start = time.time()
-        res = solver.solve()
-        runtimes.append(time.time() - start)
+    if args.algorithm in ["FairFlow", "FairSequence"]:
+        if args.algorithm == "FairFlow":
+            solver_alg = FairFlow
+        elif args.algorithm == "FairSequence":
+            solver_alg = FairSequence
 
-        usw = np.sum(res.transpose() * scores)
+        for _ in range(10):
+            solver = solver_alg(
+                mins,
+                loads,
+                covs,
+                encoder(scores.transpose(), constraint_matrix.transpose()),
+                allow_zero_score_assignments=True
+            )
+            start = time.time()
+            res = solver.solve()
+            runtimes.append(time.time() - start)
 
-        print(usw)
-        print(usw / covs.shape[0])
-        usws.append(usw / covs.shape[0])
+            usw = np.sum(res.transpose() * scores)
 
-        num_ef1_violations = ef1_violations(convert_soln_from_npy(res.transpose()), scores)
-        print(num_ef1_violations)
-        nums_ef1_violations.append(num_ef1_violations)
+            print(usw)
+            print(usw / covs.shape[0])
+            usws.append(usw / covs.shape[0])
+
+            num_ef1_violations = ef1_violations(convert_soln_from_npy(res.transpose()), scores)
+            print(num_ef1_violations)
+            nums_ef1_violations.append(num_ef1_violations)
+    else:
+        if args.algorithm == "TPMS":
+            for _ in range(10):
+                start = time.time()
+                res = tpms(scores, covs, loads)
+                runtimes.append(time.time() - start)
+
+                usw = np.sum(convert_soln_to_npy(res, loads.shape[0], covs.shape[0]) * scores)
+
+                print(usw)
+                print(usw / covs.shape[0])
+                usws.append(usw / covs.shape[0])
+
+                num_ef1_violations = ef1_violations(res, scores)
+                print(num_ef1_violations)
+                nums_ef1_violations.append(num_ef1_violations)
 
     with open("%s_%s_speed_test" % (dset, args.algorithm), 'w') as f:
         f.write("USW: %.2f pm %.2f, EF1 violations: %.2f pm %.2f, Runtime %.2f pm %.2f" %
