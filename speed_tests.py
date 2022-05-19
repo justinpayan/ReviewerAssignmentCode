@@ -126,6 +126,7 @@ if __name__ == "__main__":
             num_ef1_violations = ef1_violations(convert_soln_from_npy(res.transpose()), scores)
             print(num_ef1_violations)
             nums_ef1_violations.append(num_ef1_violations)
+            np.save("%s_%s_alloc_5_19_22" % (dset, args.algorithm), res)
     else:
         for _ in range(10):
             start = time.time()
@@ -148,6 +149,7 @@ if __name__ == "__main__":
             num_ef1_violations = ef1_violations(res, scores)
             print(num_ef1_violations)
             nums_ef1_violations.append(num_ef1_violations)
+            np.save("%s_%s_alloc_5_19_22" % (dset, args.algorithm), convert_soln_to_npy(res, loads.shape[0], covs.shape[0]))
 
     with open("%s_%s_speed_test" % (dset, args.algorithm), 'w') as f:
         f.write("USW: %.2f pm %.2f, EF1 violations: %.2f pm %.2f, Runtime %.2f pm %.2f" %
