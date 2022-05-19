@@ -17,7 +17,8 @@ by running the greedy algorithm. This greedy algorithm will always put an agent 
 the ordering, selecting the agent which maximizes the utilitarian welfare of the suborder at each step."""
 
 
-def greedy(scores, loads, covs, best_revs, alloc_file, num_processes, sample_size):
+def greedy(scores, loads, covs, best_revs, alloc_file, num_processes, sample_size, seed):
+    random.seed(seed)
     m, n = scores.shape
 
     available_agents = set(range(n))

@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import os
+import random
 import sys
 import time
 
@@ -14,6 +15,7 @@ os.chdir(cwd)
 
 from pr4a_wrapper import pr4a
 from tpms import tpms
+from greedy_reviewer_round_robin import greedy
 
 encoder = namedtuple(
     "Encoder", ["aggregate_score_matrix", "constraint_matrix"]
@@ -128,7 +130,7 @@ if __name__ == "__main__":
             nums_ef1_violations.append(num_ef1_violations)
             np.save("%s_%s_alloc_5_19_22" % (dset, args.algorithm), res)
     else:
-        for _ in range(10):
+        for i in range(10):
             start = time.time()
             if args.algorithm == "TPMS":
                 res = tpms(scores, covs, loads)
@@ -137,6 +139,15 @@ if __name__ == "__main__":
                 if dset != "midl":
                     iter_limit = 1
                 res = pr4a(scores, covs, loads, iter_limit)
+            elif args.algorithm == "GRRR":
+                best_revs = np.argsort(-1 * scores, axis=0)
+                random.seed(i)
+                if dset == "cvpr2018":
+                    sample_size = 100
+                else:
+                    sample_size = np.inf
+                res, _ = greedy(scores, loads, covs, best_revs,
+                                "%s_%s_alloc_grrr_%d" % (dset, args.algorithm, i), 20, sample_size, i)
 
             runtimes.append(time.time() - start)
 
