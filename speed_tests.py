@@ -148,6 +148,8 @@ if __name__ == "__main__":
                     sample_size = np.inf
                 res, _ = greedy(scores, loads, covs, best_revs,
                                 "%s_%s_alloc_grrr_%d" % (dset, args.algorithm, i), 20, sample_size, i)
+            elif args.algorithm == "FairIR":
+                pass
 
             runtimes.append(time.time() - start)
 
