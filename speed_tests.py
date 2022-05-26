@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument("--dataset", type=str)
     parser.add_argument("--data_dir", type=str, default=".")
     parser.add_argument("--algorithm", type=str)
+    parser.add_argument("--iter", type=int)
 
     return parser.parse_args()
 
@@ -91,6 +92,7 @@ if __name__ == "__main__":
     args = parse_args()
     dset = args.dataset
     data_dir = args.data_dir
+    iteration = args.iter
 
     scores = np.load(os.path.join(data_dir, dset, "scores.npy"))
     loads = np.load(os.path.join(data_dir, dset, "loads.npy"))
@@ -130,41 +132,41 @@ if __name__ == "__main__":
             nums_ef1_violations.append(num_ef1_violations)
             np.save("%s_%s_alloc_5_19_22" % (dset, args.algorithm), res)
     else:
-        for i in range(10):
-            start = time.time()
-            if args.algorithm == "TPMS":
-                res = tpms(scores, covs, loads)
-            elif args.algorithm == "PR4A":
-                iter_limit = np.inf
-                if dset != "midl":
-                    iter_limit = 1
-                res = pr4a(scores, covs, loads, iter_limit)
-            elif args.algorithm == "GRRR":
-                best_revs = np.argsort(-1 * scores, axis=0)
-                random.seed(i)
-                if dset == "cvpr2018":
-                    sample_size = 100
-                else:
-                    sample_size = np.inf
-                res, _ = greedy(scores, loads, covs, best_revs,
-                                "%s_%s_alloc_grrr_%d" % (dset, args.algorithm, i), 20, sample_size, i)
-            elif args.algorithm == "FairIR":
-                pass
+        # for i in range(10):
+        start = time.time()
+        if args.algorithm == "TPMS":
+            res = tpms(scores, covs, loads)
+        elif args.algorithm == "PR4A":
+            iter_limit = np.inf
+            if dset != "midl":
+                iter_limit = 1
+            res = pr4a(scores, covs, loads, iter_limit)
+        elif args.algorithm == "GRRR":
+            best_revs = np.argsort(-1 * scores, axis=0)
+            random.seed(i)
+            if dset == "cvpr2018":
+                sample_size = 100
+            else:
+                sample_size = np.inf
+            res, _ = greedy(scores, loads, covs, best_revs,
+                            "%s_%s_alloc_grrr_%d" % (dset, args.algorithm, i), 20, sample_size, i)
+        elif args.algorithm == "FairIR":
+            pass
 
-            runtimes.append(time.time() - start)
+        runtimes.append(time.time() - start)
 
-            usw = np.sum(convert_soln_to_npy(res, loads.shape[0], covs.shape[0]) * scores)
+        usw = np.sum(convert_soln_to_npy(res, loads.shape[0], covs.shape[0]) * scores)
 
-            print(usw)
-            print(usw / covs.shape[0])
-            usws.append(usw / covs.shape[0])
+        print(usw)
+        print(usw / covs.shape[0])
+        usws.append(usw / covs.shape[0])
 
-            num_ef1_violations = ef1_violations(res, scores)
-            print(num_ef1_violations)
-            nums_ef1_violations.append(num_ef1_violations)
-            np.save("%s_%s_alloc_5_19_22" % (dset, args.algorithm), convert_soln_to_npy(res, loads.shape[0], covs.shape[0]))
+        num_ef1_violations = ef1_violations(res, scores)
+        print(num_ef1_violations)
+        nums_ef1_violations.append(num_ef1_violations)
+        np.save("%s_%s_alloc_5_19_22_iter_$d" % (dset, args.algorithm, iteration), convert_soln_to_npy(res, loads.shape[0], covs.shape[0]))
 
-    with open("%s_%s_speed_test" % (dset, args.algorithm), 'w') as f:
+    with open("%s_%s_speed_test_iter_%d" % (dset, args.algorithm, iteration), 'w') as f:
         f.write("USW: %.2f pm %.2f, EF1 violations: %.2f pm %.2f, Runtime %.2f pm %.2f" %
                 (np.mean(usws), np.std(usws),
                  np.mean(nums_ef1_violations), np.std(nums_ef1_violations),
