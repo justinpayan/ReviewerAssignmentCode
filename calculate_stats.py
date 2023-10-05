@@ -15,6 +15,17 @@ def usw(alloc, pra):
     return usw / n
 
 
+def num_zeros(alloc, pra):
+    num = 0
+    for p in alloc:
+        score = 0
+        for r in alloc[p]:
+            score += pra[r, p]
+        if score == 0:
+            num += 1
+    return num
+
+
 def nsw(alloc, pra):
     _nsw = 1
     for p in alloc:
@@ -174,16 +185,22 @@ def compute_gini(alloc, scores):
 
 def print_stats(alloc, paper_reviewer_affinities):
     _usw = usw(alloc, paper_reviewer_affinities)
+    print(_usw)
     _nsw = nsw(alloc, paper_reviewer_affinities)
+    print(_nsw)
+    _num_zeros = num_zeros(alloc, paper_reviewer_affinities)
+    print(_num_zeros)
     envy = total_envy(alloc, paper_reviewer_affinities)
+    print(envy)
     _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
+    print(_ef1)
     _gini = compute_gini(alloc, paper_reviewer_affinities)
     _mean_bottom_ten, _std_bottom_ten = get_percentile_mean_std(alloc, paper_reviewer_affinities, .10)
     _mean_bottom_quartile, _std_bottom_quartile = get_percentile_mean_std(alloc, paper_reviewer_affinities, .25)
     ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
 
-    print("%0.2f & %0.2f & %0.2f & %d \\\\"
-          % (_usw, _nsw, ps_min, _ef1))
+    print("%0.2f & %0.2f & %0.2f & %d & %d \\\\"
+          % (_usw, _nsw, ps_min, _ef1, _num_zeros))
 
     print("envy: ", envy)
     print("gini: ", _gini)
