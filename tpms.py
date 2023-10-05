@@ -23,12 +23,14 @@ def add_vars_to_model(m, paper_rev_pairs):
     return x
 
 
-def add_constrs_to_model(m, x, covs, loads, cois):
+def add_constrs_to_model(m, x, covs, loads, cois, initial_alloc):
     papers = range(covs.shape[0])
     revs = range(loads.shape[0])
     m.addConstrs((x.sum(paper, '*') == covs[paper] for paper in papers), 'covs')  # Paper coverage constraints
     m.addConstrs((x.sum('*', rev) <= loads[rev] for rev in revs), 'loads')  # Reviewer load constraints
-    m.addConstrs(x <= 1-cois.T, 'cois')
+    m.addConstrs((x[p, r] <= 1-cois[r, p] for p in papers for r in revs), 'cois')
+    if np.sum(initial_alloc):
+        m.addConstrs((x[p, r] >= initial_alloc[r, p] for p in papers for r in revs), 'initial_alloc')
 
 
 def convert_to_dict(m, num_papers):
@@ -42,7 +44,7 @@ def convert_to_dict(m, num_papers):
     return alloc
 
 
-def tpms(pra, covs, loads, cois):
+def tpms(pra, covs, loads, cois, init):
     # create a multidict which stores the paper reviewer affinities
     paper_rev_pairs, pras = create_multidict(pra)
 
@@ -51,7 +53,7 @@ def tpms(pra, covs, loads, cois):
     start = time.time()
 
     x = add_vars_to_model(m, paper_rev_pairs)
-    add_constrs_to_model(m, x, covs, loads, cois)
+    add_constrs_to_model(m, x, covs, loads, cois, init)
 
     m.setObjective(x.prod(pras), GRB.MAXIMIZE)
 
@@ -80,8 +82,9 @@ if __name__ == "__main__":
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
     cois = np.load(os.path.join(base_dir, dataset, "cois.npy"))
+    init = np.load(os.path.join(base_dir, dataset, "init.npy"))
 
-    alloc = tpms(paper_reviewer_affinities, covs, loads, cois)
+    alloc = tpms(paper_reviewer_affinities, covs, loads, cois, init)
 
     save_alloc(alloc, alloc_file)
 
