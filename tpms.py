@@ -63,6 +63,7 @@ def tpms(pra, covs, loads, cois, init):
 
     alg_time = time.time() - start
 
+    print("TPMS took ", alg_time, " secs")
     print("TPMS Score")
     print(m.objVal)
 
