@@ -1,6 +1,7 @@
 import argparse
 import math
 import numpy as np
+import tqdm
 
 from collections import Counter, defaultdict
 from itertools import product
@@ -87,6 +88,40 @@ def ef1_violations(alloc, pra):
                     num_ef1_violations += 1
 
     return num_ef1_violations
+
+
+def wef1_violations(alloc, pra):
+    # Assume that none of the paper coverage constraints have been violated
+    num_wef1_violations = 0
+    n = pra.shape[1]
+    envious = set()
+    envied = set()
+    num_better_list = {}
+
+    for paper, paper2 in tqdm.tqdm(product(range(n), range(n))):
+        if paper != paper2:
+            other = get_valuation(paper, alloc[paper2], pra)
+            curr = get_valuation(paper, alloc[paper], pra)
+            found_reviewer_to_drop = False
+            curr /= len(alloc[paper])
+            if alloc[paper2]:
+                for reviewer in alloc[paper2]:
+                    val_dropped = other - pra[reviewer, paper]
+                    val_dropped /= len(alloc[paper2])
+                    if val_dropped < curr or np.abs(val_dropped - curr) < 1e-8:
+                        found_reviewer_to_drop = True
+                        break
+                if not found_reviewer_to_drop:
+                    num_wef1_violations += 1
+                    envious.add(paper)
+                    envied.add(paper2)
+                    if paper not in num_better_list:
+                        num_better_list[paper] = np.sum(pra[:, paper] > np.max(pra[list(alloc[paper]), paper]))
+
+    num_envious = len(envious)
+    num_envied = len(envied)
+    num_better = sum(num_better_list.values())
+    return num_wef1_violations, num_envious, num_envied, num_better
 
 
 def efx_violations(alloc, pra):
@@ -184,6 +219,8 @@ def compute_gini(alloc, scores):
 
 
 def print_stats(alloc, paper_reviewer_affinities):
+    _wef1, num_envious, num_envied, num_better = wef1_violations(alloc, paper_reviewer_affinities)
+    print(_wef1, num_envious, num_envied, num_better)
     _usw = usw(alloc, paper_reviewer_affinities)
     print(_usw)
     _nsw = nsw(alloc, paper_reviewer_affinities)
@@ -194,13 +231,14 @@ def print_stats(alloc, paper_reviewer_affinities):
     print(envy)
     _ef1 = ef1_violations(alloc, paper_reviewer_affinities)
     print(_ef1)
+
     _gini = compute_gini(alloc, paper_reviewer_affinities)
     _mean_bottom_ten, _std_bottom_ten = get_percentile_mean_std(alloc, paper_reviewer_affinities, .10)
     _mean_bottom_quartile, _std_bottom_quartile = get_percentile_mean_std(alloc, paper_reviewer_affinities, .25)
     ps_min, ps_max, ps_mean, ps_std = paper_score_stats(alloc, paper_reviewer_affinities)
 
-    print("%0.2f & %0.2f & %0.2f & %d & %d \\\\"
-          % (_usw, _nsw, ps_min, _ef1, _num_zeros))
+    print("%0.2f & %0.2f & %0.2f & %d & %d & %d \\\\"
+          % (_usw, _nsw, ps_min, _ef1, _wef1, _num_zeros))
 
     print("envy: ", envy)
     print("gini: ", _gini)
@@ -273,6 +311,7 @@ if __name__ == "__main__":
     pra_file = args.pra_file
 
     alloc = load_soln_from_npy(alloc_file)
+    # alloc = pickle.load(open(alloc_file, 'rb'))
     paper_reviewer_affinities = np.load(pra_file)
 
     print_stats(alloc, paper_reviewer_affinities)
