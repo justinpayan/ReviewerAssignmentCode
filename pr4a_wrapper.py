@@ -5,8 +5,8 @@ from calculate_stats import *
 
 def pr4a(pra, covs, loads, iter_limit):
     # Normalize the affinities so they're between 0 and 1
-    pra[np.where(pra < 0)] = 0
-    pra /= np.max(pra)
+    # pra[np.where(pra < 0)] = 0
+    # pra /= np.max(pra)
 
     pr4a_instance = auto_assigner(pra, demand=covs[0], ability=loads, iter_limit=iter_limit)
     pr4a_instance.fair_assignment()
@@ -26,9 +26,12 @@ if __name__ == "__main__":
     if dataset != "midl":
         iter_limit = 1
 
+    cois = np.load(os.path.join(base_dir, dataset, "cois.npy"))
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
+
+    paper_reviewer_affinities[np.where(cois)] = -1
 
     alloc = pr4a(paper_reviewer_affinities, covs, loads, iter_limit)
 

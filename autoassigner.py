@@ -1,7 +1,4 @@
-#!/usr/bin/env python2
-
-# Code obtained from Ivan Stelmakh's website (https://www.cs.cmu.edu/~istelmak/), and slightly modified by
-# Justin Payan.
+#!/usr/bin/env python3
 
 from gurobipy import Model, GRB
 from itertools import product
@@ -19,11 +16,14 @@ class auto_assigner:
     # function - transformation function of similarities
     # iter_limit - maximum number of iterations of Steps 2 to 7
     # time_limit - time limit in seconds. The algorithm performs iterations of Steps 2 to 7 until the time limit is exceeded
-    def __init__(self, simmatrix, demand=3, ability=None, function=lambda x: x, iter_limit=np.inf, time_limit=np.inf):
+    def __init__(self, simmatrix, demand=3, ability=3, function=lambda x: x, iter_limit=np.inf, time_limit=np.inf):
         self.simmatrix = simmatrix
         self.numrev = simmatrix.shape[0]
         self.numpapers = simmatrix.shape[1]
-        self.ability = ability
+        if isinstance(ability, int):
+            self.ability = ability * np.ones(self.numrev)
+        else:
+            self.ability = ability
         self.demand = demand
         self.function = function
         if iter_limit < 1:
@@ -96,6 +96,7 @@ class auto_assigner:
             upper_bound = len(sorted_pairs)
 
         current_solution = 0
+        maxflow = -1
 
         # if upper_bound == lower_bound, do one iteration to add corresponding edges to the flow network
         one_iteration_done = False
@@ -107,7 +108,7 @@ class auto_assigner:
         while lower_bound < upper_bound or not one_iteration_done:
             one_iteration_done = True
             prev_solution = current_solution
-            current_solution = int(lower_bound + (upper_bound - lower_bound) / 2)
+            current_solution = lower_bound + (upper_bound - lower_bound) // 2
 
             # the next condition is to control the case when upper_bound - lower_bound = 1
             # then it must be the case that max flow is less then required
@@ -118,7 +119,7 @@ class auto_assigner:
                 else:
                     raise ValueError('An error occured1')
 
-            # if binary choice increased the current estimate, add corresponding edges to the network
+            # if binary search increased the current estimate, add corresponding edges to the network
             if current_solution > prev_solution:
                 for cur_pair in sorted_pairs[prev_solution: current_solution]:
                     self._mix_vars[cur_pair[0], cur_pair[1]].ub = 1
@@ -143,8 +144,6 @@ class auto_assigner:
         # check if binary search succesfully converged
         if maxflow != len(not_assigned) * kappa or lower_bound != current_solution:
             # shouldn't enter here
-            print
-            maxflow, len(not_assigned), lower_bound, current_solution
             raise ValueError('An error occured3')
 
         # prepare for max-cost max-flow -- we enforce each paper to be reviewed by kappa reviewers
@@ -180,7 +179,7 @@ class auto_assigner:
             assignment[paper] = assignment1[paper] + assignment2[paper]
         return assignment
 
-    # Compute fairness
+    # Compute fairfness
     def quality(self, assignment, *args):
         qual = np.inf
         if args != ():
@@ -194,25 +193,25 @@ class auto_assigner:
 
     # Full algorithm
     def _fair_assignment(self):
-        
+
         # Counter for number of performed iterations
         iter_counter = 0
         # Start time
         start_time = time.time()
-        
+
         current_best = None
         current_best_score = 0
         local_simmatrix = self.simmatrix.copy()
-        # local_abilities = self.ability * np.ones(self.numrev)
         local_abilities = self.ability
         not_assigned = set(range(self.numpapers))
         final_assignment = {}
 
         # One iteration of Steps 2 to 7 of the algorithm
-        while not_assigned != set() and iter_counter < self.iter_limit and (time.time() < start_time + self.time_limit or iter_counter == 0):
-            print(iter_counter)
+        while not_assigned != set() and iter_counter < self.iter_limit and (
+                time.time() < start_time + self.time_limit or iter_counter == 0):
+
             iter_counter += 1
-            
+
             lower_bound = 0
             upper_bound = len(not_assigned) * self.numrev
 
@@ -266,7 +265,7 @@ class auto_assigner:
                         self._mix_vars[reviewer, paper].lb = 0
                         if reviewer in final_assignment[paper]:
                             local_abilities[reviewer] -= 1
-            
+
             current_best_score = self.quality(current_best)
             self._problem.update()
 

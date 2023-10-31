@@ -2,6 +2,7 @@ import argparse
 import math
 import numpy as np
 import tqdm
+import pickle
 
 from collections import Counter, defaultdict
 from itertools import product
@@ -104,6 +105,7 @@ def wef1_violations(alloc, pra):
             curr = get_valuation(paper, alloc[paper], pra)
             found_reviewer_to_drop = False
             curr /= len(alloc[paper])
+
             if alloc[paper2]:
                 for reviewer in alloc[paper2]:
                     val_dropped = other - pra[reviewer, paper]
@@ -119,6 +121,8 @@ def wef1_violations(alloc, pra):
                         num_better_list[paper] = np.sum(pra[:, paper] > np.max(pra[list(alloc[paper]), paper]))
 
     num_envious = len(envious)
+    print(sorted(list(envious)))
+
     num_envied = len(envied)
     num_better = sum(num_better_list.values())
     return num_wef1_violations, num_envious, num_envied, num_better
@@ -311,6 +315,7 @@ if __name__ == "__main__":
     pra_file = args.pra_file
 
     alloc = load_soln_from_npy(alloc_file)
+    print(len(alloc))
     # alloc = pickle.load(open(alloc_file, 'rb'))
     paper_reviewer_affinities = np.load(pra_file)
 
