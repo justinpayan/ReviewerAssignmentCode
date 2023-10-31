@@ -302,15 +302,18 @@ def load_soln_from_npy(path_to_output):
     return alloc
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--alloc_file", type=str)
-    parser.add_argument("--pra_file", type=str)
-    return parser.parse_args()
+# def parse_args():
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("--alloc_file", type=str)
+#     parser.add_argument("--pra_file", type=str)
+#     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--alloc_file", type=str)
+    parser.add_argument("--pra_file", type=str)
+    args = parser.parse_args()
     alloc_file = args.alloc_file
     pra_file = args.pra_file
 
