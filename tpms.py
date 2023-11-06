@@ -82,7 +82,8 @@ if __name__ == "__main__":
     paper_reviewer_affinities = np.load(os.path.join(base_dir, dataset, "scores.npy"))
     covs = np.load(os.path.join(base_dir, dataset, "covs.npy"))
     loads = np.load(os.path.join(base_dir, dataset, "loads.npy")).astype(np.int64)
-    cois = np.load(os.path.join(base_dir, dataset, "cois.npy"))
+    # cois = np.load(os.path.join(base_dir, dataset, "cois.npy"))
+    cois = np.zeros(paper_reviewer_affinities.shape)
     if "init.npy" in os.listdir(os.path.join(base_dir, dataset)):
         init = np.load(os.path.join(base_dir, dataset, "init.npy"))
     else:
